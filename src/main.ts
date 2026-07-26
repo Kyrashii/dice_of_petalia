@@ -9,6 +9,7 @@ import { createRerollCharmEffects } from "./reroll-charm-effects";
 import { createLumaSpeech } from "./luma-speech";
 import { createDiceAnimation } from "./dice-animation";
 import { createPetSpriteRenderer } from "./pet-sprite-renderer";
+import { createPetSheetLoader } from "./pet-sheet-loader";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -66,6 +67,8 @@ import { createPetSpriteRenderer } from "./pet-sprite-renderer";
     const { speechForHand, roundSpeech } = createLumaSpeech(appContext);
     const { animateDice } = createDiceAnimation(appContext);
     const { setPetFrame } = createPetSpriteRenderer(appContext);
+    appContext.setPetFrame=setPetFrame;
+    const { loadPetSheet } = createPetSheetLoader(appContext);
 
     function defaultState(){
       return {
@@ -258,18 +261,6 @@ import { createPetSpriteRenderer } from "./pet-sprite-renderer";
       if(selected.has(i))selected.delete(i);else selected.add(i);
       renderDice();$("#rerollBtn").disabled=state.rerollsLeft<1||selected.size===0;
       clickSound(430,.03);
-    }
-    function loadPetSheet(){
-      const cssValue=getComputedStyle(document.documentElement).getPropertyValue("--pet-sheet").trim();
-      const match=cssValue.match(/^url\((['"]?)(.*)\1\)$/);
-      const source=match?match[2]:cssValue;
-      petImage=new Image();
-      petImage.onload=()=>{
-        petImageReady=true;
-        setPetFrame(lastPetState,lastPetFrame);
-      };
-      petImage.onerror=()=>toast("Lady Luma's sprite sheet could not be loaded.");
-      petImage.src=source;
     }
     function startPetIdle(){
       clearInterval(petTimer);clearTimeout(petTimer);
