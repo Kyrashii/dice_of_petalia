@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#f7d9ee" />
+    <title>Dice of Petalia</title>
+  </head>
+  <body data-garden-phase="1" class="garden-unlocked-1">
+  <div class="garden-world" aria-hidden="true">
+    <div class="garden-phase garden-p1"></div>
+    <div class="garden-phase garden-p2"></div>
+    <div class="garden-phase garden-p3"></div>
+    <div class="garden-phase garden-p4"></div>
+    <div class="garden-phase garden-p5"></div>
+  </div>
+  <div class="start-screen" id="startScreen">
+    <div class="start-card">
+      <div class="start-guardian" id="startGuardian"></div>
+      <h2>Dice of Petalia <span>a pastel dice roguelike</span></h2>
+      <p>Lady Luma guards the Moon Garden. Win 25 rounds of dice poker and she will open the starlight gate for you.</p>
+      <div class="start-actions">
+        <button class="start-btn new" id="newRunBtn">Begin a new journey</button>
+        <button class="start-btn continue" id="continueBtn">Continue saved journey</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="app">
+    <div class="game-shell">
+      <main class="main-panel">
+        <div class="sparkles" aria-hidden="true">
+          <i style="left:8%;top:8%"></i><i style="left:78%;top:7%;animation-delay:1s"></i>
+          <i style="left:91%;top:42%;animation-delay:2s"></i><i style="left:12%;top:65%;animation-delay:.5s"></i>
+          <i style="left:70%;top:85%;animation-delay:2.8s"></i>
+        </div>
+        <header>
+          <div class="brand">
+            <div class="brand-mark" id="brandMark"></div>
+            <h1>Dice of Petalia <small>Moon Garden Trial</small></h1>
+          </div>
+          <div>
+            <button class="icon-btn side-toggle" id="sideToggle" aria-label="Open charms"></button>
+            <button class="icon-btn" id="helpBtn" aria-label="How to play"></button>
+            <button class="icon-btn" id="soundBtn" aria-label="Toggle sound"></button>
+          </div>
+        </header>
+
+        <section class="guardian-zone">
+          <div class="guardian" id="guardian"></div>
+          <div class="speech"><p id="speech">Choose the dice you want to reroll, little wanderer.</p></div>
+        </section>
+
+        <section class="round-card">
+          <div class="round-top">
+            <div><div class="eyebrow">Garden path</div><div class="level" id="levelText">Round 1 / 25</div></div>
+            <div class="target"><div class="eyebrow">Score</div><strong><span id="roundScore">0</span> / <span id="targetScore">100</span></strong></div>
+          </div>
+          <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+        </section>
+
+        <section class="score-row">
+          <div class="score-box"><div class="label">Petals</div><div class="value" id="petals">0</div></div>
+          <div class="score-box"><div class="label">Sparkle</div><div class="value">×<span id="mult">1</span></div></div>
+          <div class="score-box"><div class="label">Hand score</div><div class="value" id="preview">0</div></div>
+        </section>
+
+        <section class="moon-table" aria-label="Moonlit dice table">
+          <div class="moon-table-stars" aria-hidden="true"><i></i><i></i><i></i></div>
+          <div class="hand-banner">
+            <strong id="handName">High Roll</strong>
+            <span id="handDetail">All five dice add petals</span>
+          </div>
+          <div class="dice-row" id="diceRow" aria-label="Five dice"></div>
+        </section>
+        <section class="actions">
+          <button class="btn reroll-btn" id="rerollBtn">Reroll selected <small><span id="rerolls">3</span> rerolls left</small></button>
+          <button class="btn play-btn" id="playBtn">Play this hand <small><span id="hands">3</span> hands left</small></button>
+        </section>
+      </main>
+
+      <aside class="side-panel" id="sidePanel">
+        <div class="section-title"><span>Your lucky charms</span><span id="charmCount">0</span></div>
+        <div class="charm-list" id="charmList"></div>
+        <div class="side-bottom">
+          <button class="mini-btn" id="handsBtn">Hand levels</button>
+          <button class="mini-btn" id="restartBtn">New run</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+  <div class="toast" id="toast"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
