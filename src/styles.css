@@ -119,6 +119,7 @@
       --lav:#b9a7df;--lav2:#e8def6;--mint:#a9d7c1;--mint2:#dcefe6;--sky:#a8cfe4;
       --cream:#f9dc8f;--rose:#c85f91;--line:#dfd2e8;--shadow:8px 9px 0 #d8cce7;
       --pet-sheet:url("./assets/lady-luma-sprite-sheet.png");
+      --luma-pedestal:url("./assets/ladyluma_podest_keyed.png");
     }
     html,body{font-family:"Avenir Next Rounded","Arial Rounded MT Bold","Trebuchet MS","Segoe UI",sans-serif}
     body{
@@ -171,20 +172,10 @@
     }
     .guardian{height:270px;position:relative;isolation:isolate}
     .guardian:before{
-      content:"";position:absolute;z-index:-2;left:50%;bottom:10px;width:218px;height:88px;transform:translateX(-50%);
-      border:4px solid #fff0b7;border-radius:50% 50% 42% 42% / 30% 30% 68% 68%;
-      background:linear-gradient(#fbe9a2 0 37%,#e9bd68 38% 100%);box-shadow:0 9px 0 #c9b5de,inset 0 7px 0 rgba(255,255,255,.45)
+      content:"";position:absolute;z-index:-2;left:50%;bottom:-77px;width:250px;height:250px;transform:translateX(-50%);
+      background:var(--luma-pedestal) center/contain no-repeat
     }
-    .guardian:after{
-      content:"";position:absolute;z-index:-1;left:50%;bottom:34px;width:224px;height:76px;transform:translateX(-50%);
-      background:
-        radial-gradient(ellipse at 8% 72%,#fff9d8 0 5px,transparent 5.8px),radial-gradient(ellipse at 8% 72%,transparent 0 9px,#d38cb4 9.5px 11px,transparent 11.5px),
-        radial-gradient(ellipse at 26% 36%,#fff9d8 0 6px,transparent 6.8px),radial-gradient(ellipse at 26% 36%,transparent 0 11px,#d38cb4 11.5px 13px,transparent 13.5px),
-        radial-gradient(ellipse at 52% 75%,#fff9d8 0 6px,transparent 6.8px),radial-gradient(ellipse at 52% 75%,transparent 0 11px,#d38cb4 11.5px 13px,transparent 13.5px),
-        radial-gradient(ellipse at 77% 36%,#fff9d8 0 6px,transparent 6.8px),radial-gradient(ellipse at 77% 36%,transparent 0 11px,#d38cb4 11.5px 13px,transparent 13.5px),
-        radial-gradient(ellipse at 94% 68%,#fff9d8 0 5px,transparent 5.8px),radial-gradient(ellipse at 94% 68%,transparent 0 9px,#d38cb4 9.5px 11px,transparent 11.5px);
-      background-repeat:no-repeat
-    }
+    .guardian:after{display:none}
     .pet-button{
       display:grid;place-items:center;width:100%;height:100%;margin:auto;border:0;padding:0;cursor:pointer;
       position:relative;isolation:isolate;background:transparent
@@ -277,17 +268,14 @@
       background-image:radial-gradient(circle at 14px 14px,rgba(255,255,255,.6) 0 2px,transparent 2.5px);
       background-size:42px 42px
     }
-    .start-card{position:relative}.start-guardian{position:relative;height:270px}
+    .start-card{position:relative}.start-guardian{position:relative;isolation:isolate;display:grid;place-items:start center;height:270px}
     .start-guardian:before{
-      content:"";position:absolute;left:50%;bottom:8px;width:235px;height:112px;transform:translateX(-50%);
-      border-radius:0 0 130px 130px;background:#f7d77e;border:6px solid #fff0b7;box-shadow:0 9px 0 #cbb8df
+      content:"";position:absolute;z-index:1;left:50%;bottom:-77px;width:250px;height:250px;transform:translateX(-50%);
+      background:var(--luma-pedestal) center/contain no-repeat
     }
-    .start-guardian:after{
-      content:"";position:absolute;left:50%;bottom:45px;width:182px;height:100px;transform:translateX(-50%);
-      border-radius:0 0 100px 100px;background:#e7daf3
-    }
-    .start-guardian .pet-canvas{position:relative;z-index:2}
-    .start-guardian .pet-canvas{position:relative;z-index:2;width:195px;height:260px}
+    .start-guardian:after{display:none}
+    .start-guardian .pet-canvas{position:relative;z-index:2;display:block;justify-self:center;transform:translateY(-12px)}
+    .start-guardian .pet-canvas{width:195px;height:260px}
     .start-card h2{font-size:clamp(42px,10vw,70px);color:#664b80}
     .start-card h2 span{font-family:"Courier New",monospace;font-size:11px;color:#a64d77}
     .start-card p{color:#5f516f}.start-btn{border-radius:10px;border:2px solid #765b93;box-shadow:4px 5px 0 #765b93}
@@ -297,8 +285,7 @@
       .app{padding:0}.main-panel{border:0;box-shadow:none;padding:12px 12px 88px}
       .side-panel{border:3px solid #f9f3ff;box-shadow:7px 8px 0 #cbbde0}
       .guardian-zone{grid-template-columns:142px minmax(0,1fr);gap:8px;min-height:192px;margin-top:2px}.guardian{height:188px}
-      .guardian:before{width:144px;height:54px;bottom:7px;border-width:3px;box-shadow:0 6px 0 #c9b5de,inset 0 5px 0 rgba(255,255,255,.45)}
-      .guardian:after{bottom:22px;width:150px;height:52px}
+      .guardian:before{width:165px;height:165px;bottom:-51px}
       .guardian .pet-canvas{width:136px;height:181px}
       .pet-button:before{width:145px;height:145px}
       .moon-table{min-height:190px;margin-top:13px;padding-left:8px;padding-right:8px}
@@ -307,7 +294,7 @@
     @media(max-width:420px){
       .main-panel{padding:10px 9px 86px}.brand-mark{width:38px;height:38px}h1{font-size:22px}
       .guardian-zone{grid-template-columns:130px minmax(0,1fr);min-height:174px}.guardian{height:170px}.speech p{font-size:11px}
-      .guardian:before{width:132px;height:48px}.guardian:after{width:136px;height:46px}
+      .guardian:before{width:150px;height:150px;bottom:-46px}
       .guardian .pet-canvas{width:128px;height:170px}
       .pet-button:before{width:134px;height:134px}
       .moon-table{min-height:174px;padding-top:9px}.hand-banner strong{font-size:18px}
