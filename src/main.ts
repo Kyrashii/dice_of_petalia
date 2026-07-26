@@ -154,6 +154,7 @@ import { evaluate, handsData, rollFive, sum, targetFor } from "./game-rules";
       $("#handDetail").textContent=p.hand.desc;
       $("#rerolls").textContent=state.rerollsLeft;
       $("#hands").textContent=state.handsLeft;
+      $("#guardian").classList.toggle("is-worried",state.phase==="play"&&state.handsLeft===1);
       $("#rerollBtn").disabled=busy||state.rerollsLeft<1||selected.size===0;
       $("#playBtn").disabled=busy;
       renderDice();renderCharms();updateSound();
@@ -211,6 +212,7 @@ import { evaluate, handsData, rollFive, sum, targetFor } from "./game-rules";
     }
     function petTap(){
       animatePet("happy",1);clickSound(720,.05);
+      lumaHearts();
       const lines=["You found my secret ticklish ear!","I am supervising the dice very carefully.","The moon says your next roll feels lucky.","One tiny hop for moral support!"];
       if(state)$("#speech").textContent=lines[Math.floor(Math.random()*lines.length)];
     }
@@ -241,6 +243,7 @@ import { evaluate, handsData, rollFive, sum, targetFor } from "./game-rules";
       busy=true;selected.clear();
       const p=previewStats(), hits=p.triggers;
       animatePet(p.mult>=4?"happy":"dice",1);
+      if(p.hand.mult>=4)lumaStars(p.hand.mult);
       $("#petals").textContent=p.petals;$("#mult").textContent=p.mult;$("#preview").textContent=p.total.toLocaleString();
       flashCharms(hits);scoreSound(p.mult);
       popScore(p.total);burst(window.innerWidth/2,window.innerHeight*.58,16);
@@ -372,6 +375,22 @@ import { evaluate, handsData, rollFive, sum, targetFor } from "./game-rules";
       for(let i=0;i<n;i++){const e=document.createElement("i"),a=Math.random()*Math.PI*2,d=40+Math.random()*150;e.className="burst";e.style.cssText=`left:${x}px;top:${y}px;background:${colors[i%colors.length]};--x:${Math.cos(a)*d}px;--y:${Math.sin(a)*d}px`;document.body.appendChild(e);setTimeout(()=>e.remove(),1100)}
     }
     function popScore(n){const r=$("#preview").getBoundingClientRect(),e=document.createElement("div");e.className="score-pop";e.textContent=`+${n.toLocaleString()}`;e.style.left=`${r.left+r.width/2-28}px`;e.style.top=`${r.top}px`;document.body.appendChild(e);setTimeout(()=>e.remove(),1200)}
+    function lumaParticles(kind,count){
+      if(reduceMotion)return;
+      const stage=$("#guardian");if(!stage)return;
+      const r=stage.getBoundingClientRect();
+      for(let i=0;i<count;i++){
+        const e=document.createElement("i"),angle=Math.random()*Math.PI*2,range=34+Math.random()*54;
+        e.className=`luma-${kind}`;e.textContent=kind==="star"?"✦":"♥";
+        e.style.left=`${r.left+r.width*(.2+Math.random()*.6)}px`;
+        e.style.top=`${r.top+r.height*(.16+Math.random()*.58)}px`;
+        e.style.setProperty("--drift-x",`${Math.cos(angle)*range}px`);
+        e.style.setProperty("--drift-y",`${Math.sin(angle)*range-28}px`);
+        document.body.appendChild(e);setTimeout(()=>e.remove(),950);
+      }
+    }
+    function lumaHearts(){lumaParticles("heart",6)}
+    function lumaStars(mult){lumaParticles("star",Math.min(10,3+mult))}
 
     function initAudio(){
       if(audioCtx)return true;
