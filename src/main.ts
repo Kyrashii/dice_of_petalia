@@ -23,6 +23,7 @@ import { createGameRenderer } from "./game-renderer";
 import { createGardenProgress } from "./garden-progress";
 import { createRunState } from "./run-state";
 import { createSkinEffects } from "./skin-effects";
+import { createPetInteraction } from "./pet-interaction";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -112,6 +113,8 @@ import { createSkinEffects } from "./skin-effects";
     const { recordGardenEvent, grantMoonDropForRun } = createGardenProgress(appContext);
     const { defaultState, baseStats, gameContext: context, triggered, previewStats } = createRunState(appContext);
     const { emitSkinEffect } = createSkinEffects(appContext);
+    appContext.animatePet=animatePet;appContext.clickSound=(...args)=>clickSound(...args);appContext.lumaHearts=lumaHearts;
+    const { petTap } = createPetInteraction(appContext);
 
 
     const { defaultGarden, loadGarden, saveGarden, taskDone, completedTasks, isUnlocked, effectUnlocked, activeSkin } = gardenState;
@@ -159,12 +162,6 @@ import { createSkinEffects } from "./skin-effects";
       $("#closeSkins").onclick=closeModal;
     }
 
-    function petTap(){
-      animatePet("happy",1);clickSound(720,.05);
-      lumaHearts();
-      const lines=["You found my secret ticklish ear!","I am supervising the dice very carefully.","The moon says your next roll feels lucky.","One tiny hop for moral support!"];
-      if(state)$("#speech").textContent=lines[Math.floor(Math.random()*lines.length)];
-    }
     async function reroll(){
       if(busy||state.rerollsLeft<1||!selected.size)return;
       busy=true;rollSound();animatePet("dice",1);
