@@ -21,6 +21,7 @@ import { createDiceRenderer } from "./dice-renderer";
 import { createCharmRenderer } from "./charm-renderer";
 import { createGameRenderer } from "./game-renderer";
 import { createGardenProgress } from "./garden-progress";
+import { createRunState } from "./run-state";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -108,28 +109,8 @@ import { createGardenProgress } from "./garden-progress";
     const { updateGardenPhase, render } = createGameRenderer(appContext);
     appContext.showSkinMenu=()=>showSkinMenu();
     const { recordGardenEvent, grantMoonDropForRun } = createGardenProgress(appContext);
+    const { defaultState, baseStats, gameContext: context, triggered, previewStats } = createRunState(appContext);
 
-    function defaultState(){
-      return {
-        level:1,target:targetFor(1),roundScore:0,handsLeft:3,rerollsLeft:3,
-        dice:rollFive(),initialDice:[],rerollsUsed:0,handLevels:Object.fromEntries(handsData.map(h=>[h.id,1])),
-        charms:[],sound:audio.enabled,phase:"play",totalScore:0,runStarted:Date.now()
-      };
-    }
-    function baseStats(){
-      const hand=evaluate(state.dice), level=state.handLevels[hand.id]||1;
-      return {hand,petals:sum(state.dice)+hand.base+(level-1)*(4+Math.ceil(hand.base*.22)),mult:hand.mult+(level-1)};
-    }
-    function context(phase,extra={}){
-      return {phase,dice:state.dice,hand:evaluate(state.dice),rerollsUsed:state.rerollsUsed,rerollsLeft:state.rerollsLeft,handsLeft:state.handsLeft,...extra};
-    }
-    function triggered(ctx){return state.charms.filter(ch=>ch.family.test(ctx))}
-    function previewStats(){
-      const base=baseStats(), list=triggered(context("play"));
-      let petals=base.petals,mult=base.mult;
-      list.forEach(ch=>{const e=ch.variant.effect(ch.rank);petals+=e.petals;mult+=e.mult});
-      return {...base,petals,mult,total:petals*mult,triggers:list};
-    }
 
     const { defaultGarden, loadGarden, saveGarden, taskDone, completedTasks, isUnlocked, effectUnlocked, activeSkin } = gardenState;
     function selectSkin(id){
