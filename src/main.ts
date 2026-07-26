@@ -14,6 +14,7 @@ import { createPetAnimation } from "./pet-animation";
 import { createUiFeedback } from "./ui-feedback";
 import { createGameServices } from "./game-services";
 import { createRunSave } from "./run-save";
+import { createGardenState } from "./garden-state";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -33,7 +34,9 @@ import { createRunSave } from "./run-save";
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const effects = createVisualEffects({query:$,colors:burstColors,reduceMotion});
 
-    let garden = loadGarden();
+    let garden;
+    const gardenState = createGardenState({gardenKey:GARDEN_KEY,skinPacks,get garden(){return garden}});
+    garden=gardenState.loadGarden();
     let secretCodeBuffer = "";
     const skinFaceLoader = createSkinFaceLoader(skinPacks, {
       onReady: () => {
@@ -69,6 +72,9 @@ import { createRunSave } from "./run-save";
       reduceMotion,
       audio,effects,icons,
       saveKey:SAVE_KEY,
+      gardenKey:GARDEN_KEY,
+      get garden(){return garden}, set garden(value){garden=value},
+      skinPacks,
       toast: (...args)=>toast(...args)
     };
     const { applyRerollCharmEffects } = createRerollCharmEffects(appContext);
@@ -82,6 +88,7 @@ import { createRunSave } from "./run-save";
     const { burst, popScore, lumaHearts, lumaStars, clickSound, rollSound, scoreSound, winSound, failSound, updateSound } = createGameServices(appContext);
     appContext.updateContinue=()=>updateContinue();
     const { save, load, persistSafe } = createRunSave(appContext);
+    Object.assign(appContext,gardenState);
 
     function defaultState(){
       return {
@@ -105,31 +112,7 @@ import { createRunSave } from "./run-save";
       return {...base,petals,mult,total:petals*mult,triggers:list};
     }
 
-    function defaultGarden(){
-      return {selected:"default",moonDrops:0,packs:Object.fromEntries(skinPacks.map(pack=>[pack.id,{progress:{},skipped:false,skippedTask:null}]))};
-    }
-    function loadGarden(){
-      try{
-        const saved=JSON.parse(localStorage.getItem(GARDEN_KEY)||"null"),fresh=defaultGarden();
-        if(!saved)return fresh;
-        skinPacks.forEach(pack=>{
-          const old=saved.packs?.[pack.id]||{};
-          fresh.packs[pack.id]={progress:old.progress||{},skipped:!!old.skipped,skippedTask:old.skippedTask||null};
-        });
-        fresh.moonDrops=Math.max(0,Number(saved.moonDrops)||0);
-        fresh.selected=saved.selected==="default"||skinPacks.some(pack=>pack.id===saved.selected)?saved.selected:"default";
-        return fresh;
-      }catch{return defaultGarden()}
-    }
-    function saveGarden(){localStorage.setItem(GARDEN_KEY,JSON.stringify(garden))}
-    function taskDone(pack,task){return (garden.packs[pack.id]?.progress?.[task.id]||0)>=task.target}
-    function completedTasks(pack){return pack.tasks.filter(task=>taskDone(pack,task)).length}
-    function isUnlocked(pack){return completedTasks(pack)>=5}
-    function effectUnlocked(pack){return completedTasks(pack)===pack.tasks.length}
-    function activeSkin(){
-      const pack=skinPacks.find(item=>item.id===garden.selected);
-      return pack&&isUnlocked(pack)?pack:null;
-    }
+    const { defaultGarden, loadGarden, saveGarden, taskDone, completedTasks, isUnlocked, effectUnlocked, activeSkin } = gardenState;
     function recordGardenEvent(event){
       let changed=false,justUnlocked=[];
       skinPacks.forEach(pack=>pack.tasks.forEach(task=>{
