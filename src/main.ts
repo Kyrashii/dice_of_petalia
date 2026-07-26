@@ -16,6 +16,7 @@ import { createGameServices } from "./game-services";
 import { createRunSave } from "./run-save";
 import { createGardenState } from "./garden-state";
 import { createSkinPresentation } from "./skin-presentation";
+import { createDiceSelection } from "./dice-selection";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -63,6 +64,8 @@ import { createSkinPresentation } from "./skin-presentation";
     let pendingChoices = [];
     const appContext = {
       get state(){return state}, set state(value){state=value},
+      get selected(){return selected},
+      get busy(){return busy}, set busy(value){busy=value},
       query:$,
       get petImage(){return petImage}, set petImage(value){petImage=value},
       get petImageReady(){return petImageReady}, set petImageReady(value){petImageReady=value},
@@ -92,6 +95,8 @@ import { createSkinPresentation } from "./skin-presentation";
     const { save, load, persistSafe } = createRunSave(appContext);
     Object.assign(appContext,gardenState);
     const { pips, prepareSkinSheets, skinFace } = createSkinPresentation(appContext);
+    appContext.renderDice=()=>renderDice();appContext.clickSound=(...args)=>clickSound(...args);
+    const { toggleDie } = createDiceSelection(appContext);
 
     function defaultState(){
       return {
@@ -220,12 +225,6 @@ import { createSkinPresentation } from "./skin-presentation";
       $("#rerollBtn").disabled=busy||state.rerollsLeft<1||selected.size===0;
       $("#playBtn").disabled=busy;
       renderDice();renderCharms();updateSound();
-    }
-    function toggleDie(i){
-      if(busy)return;
-      if(selected.has(i))selected.delete(i);else selected.add(i);
-      renderDice();$("#rerollBtn").disabled=state.rerollsLeft<1||selected.size===0;
-      clickSound(430,.03);
     }
     function petTap(){
       animatePet("happy",1);clickSound(720,.05);
