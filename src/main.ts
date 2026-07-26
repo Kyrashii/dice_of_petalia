@@ -15,6 +15,7 @@ import { createUiFeedback } from "./ui-feedback";
 import { createGameServices } from "./game-services";
 import { createRunSave } from "./run-save";
 import { createGardenState } from "./garden-state";
+import { createSkinPresentation } from "./skin-presentation";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -75,6 +76,7 @@ import { createGardenState } from "./garden-state";
       gardenKey:GARDEN_KEY,
       get garden(){return garden}, set garden(value){garden=value},
       skinPacks,
+      skinFaceLoader,
       toast: (...args)=>toast(...args)
     };
     const { applyRerollCharmEffects } = createRerollCharmEffects(appContext);
@@ -89,6 +91,7 @@ import { createGardenState } from "./garden-state";
     appContext.updateContinue=()=>updateContinue();
     const { save, load, persistSafe } = createRunSave(appContext);
     Object.assign(appContext,gardenState);
+    const { pips, prepareSkinSheets, skinFace } = createSkinPresentation(appContext);
 
     function defaultState(){
       return {
@@ -131,14 +134,6 @@ import { createGardenState } from "./garden-state";
       if(state.level<5||state.gardenRewarded)return;
       state.gardenRewarded=true;garden.moonDrops++;saveGarden();
       toast("Lady Luma saved a Moon Drop for this journey.");
-    }
-    function prepareSkinSheets(){
-      skinFaceLoader.prepare();
-    }
-    function skinFace(packId,value,preview=false){
-      if(packId==="default")return `<span class="preview-pips preview-${value}" aria-hidden="true">${pips(value)}</span>`;
-      const source=skinFaceLoader.face(packId,value);
-      return source?`<img class="skin-face${preview?" preview-face":""}" src="${source}" alt="" aria-hidden="true">`:`<span class="skin-loading" aria-hidden="true"></span>`;
     }
     function selectSkin(id){
       const pack=skinPacks.find(item=>item.id===id);
@@ -184,10 +179,6 @@ import { createGardenState } from "./garden-state";
       $("#closeSkins").onclick=closeModal;
     }
 
-    function pips(n){
-      const map={1:[5],2:[1,9],3:[1,5,9],4:[1,3,7,9],5:[1,3,5,7,9],6:[1,3,4,6,7,9]};
-      return map[n].map(i=>`<i class="pip p${i}"></i>`).join("");
-    }
     function renderDice(){
       const skin=activeSkin();
       $("#diceRow").innerHTML=state.dice.map((n,i)=>`<button class="die ${skin?"skinned-die":""} ${selected.has(i)?"selected":""}" data-i="${i}" aria-label="Die ${i+1}: ${n}${selected.has(i)?", selected for reroll":""}">${skin?skinFace(skin.id,n):pips(n)}</button>`).join("");
