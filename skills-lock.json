@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "skills": {
+    "anti-ui-slop": {
+      "source": "uizze.com",
+      "sourceType": "well-known",
+      "computedHash": "5688329047578698d518e6efd887a07d5b6a1290bfb6999194cc3a2428d458ea"
+    },
+    "frontend-design": {
+      "source": "anthropics/skills",
+      "sourceType": "github",
+      "skillPath": "skills/frontend-design/SKILL.md",
+      "computedHash": "4eabc66183767153e404b39d1b839b1c37f2d82d86f0a0d7e880a579d8d62336"
+    },
+    "ui-radar": {
+      "source": "uizze.com",
+      "sourceType": "well-known",
+      "computedHash": "49a71df831b391284ab5980af141839ae69341264cc175b15746c770d8a7b541"
+    },
+    "ui-slop-score": {
+      "source": "uizze.com",
+      "sourceType": "well-known",
+      "computedHash": "4bb53b3c3f94b594257a7c0da628ea4eb7c53493fc39ae9dbd95529ab3b1a955"
+    }
+  }
+}
