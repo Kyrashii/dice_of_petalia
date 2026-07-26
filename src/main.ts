@@ -1,13 +1,12 @@
 // @ts-nocheck
 import "./styles.css";
 import { evaluate, handsData, rollFive, sum, targetFor } from "./game-rules";
-import sakuraPetalSheet from "./assets/sakura-petal-pack_keyed.png";
-import mintFairySheet from "./assets/mint-fairy-pack_keyed.png";
-import moonlitPearlSheet from "./assets/moonlit-pearl-pack_keyed.png";
-import twilightCrystalSheet from "./assets/twilight-crystal-pack_keyed.png";
+import { burstColors, charmFamilies, skinPacks, variants } from "./game-content";
+import { createSkinFaceLoader } from "./skin-faces";
+import { createAudioController } from "./audio-controller";
+import { createVisualEffects } from "./visual-effects";
 
-// The original browser game is intentionally kept as one behavior-preserving module.
-// Game-rule functions above are typed and independently tested.
+// This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
     "use strict";
 
@@ -15,9 +14,7 @@ import twilightCrystalSheet from "./assets/twilight-crystal-pack_keyed.png";
     const SAVE_KEY = "dice-of-petalia-save-v1";
     const META_KEY = "dice-of-petalia-meta-v1";
     const GARDEN_KEY = "dice-of-petalia-luma-garden-v1";
-    const colors = ["#f5a9cf","#c8b6ff","#a8e6cf","#ffd98e","#a9d8f5"];
-    let audioCtx = null;
-    let soundOn = JSON.parse(localStorage.getItem("petalia-sound") ?? "true");
+    const audio = createAudioController(JSON.parse(localStorage.getItem("petalia-sound") ?? "true"));
     let petTimer = null;
     let petImage = null;
     let petImageReady = false;
@@ -25,45 +22,17 @@ import twilightCrystalSheet from "./assets/twilight-crystal-pack_keyed.png";
     let lastPetFrame = 0;
     const petRows = {idle:0,happy:1,dice:2};
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    const effects = createVisualEffects({query:$,colors:burstColors,reduceMotion});
 
-    // These goals only observe existing dice events; none of them alter a roll, score or reroll.
-    const skinPacks = [
-      {id:"sakura",name:"Sakura Petal",sheet:sakuraPetalSheet,accent:"#df6f9f",effect:"Petal rain",tasks:[
-        {id:"pair",label:"Play 3 pairs",target:3,when:e=>e.type==="play"&&e.hand==="pair"},
-        {id:"twoPair",label:"Play a Two Pair",target:1,when:e=>e.type==="play"&&e.hand==="twoPair"},
-        {id:"straight",label:"Play a straight",target:1,when:e=>e.type==="play"&&e.hand==="straight"},
-        {id:"smallReroll",label:"Reroll exactly 2 dice",target:2,when:e=>e.type==="reroll"&&e.changed===2},
-        {id:"pinkSix",label:"Reroll a die into 6, 3 times",target:3,when:e=>e.type==="reroll"&&e.sixes},
-        {id:"bloom",label:"Win 2 rounds",target:2,when:e=>e.type==="round-win"}
-      ]},
-      {id:"mint",name:"Mint Fairy",sheet:mintFairySheet,accent:"#4aaf91",effect:"Fairy leaves",tasks:[
-        {id:"clean",label:"Play 3 hands without rerolling",target:3,when:e=>e.type==="play"&&e.rerollsUsed===0},
-        {id:"single",label:"Reroll exactly 1 die",target:3,when:e=>e.type==="reroll"&&e.changed===1},
-        {id:"even",label:"Play an all-even hand",target:1,when:e=>e.type==="play"&&e.dice.every(n=>n%2===0)},
-        {id:"odd",label:"Play an all-odd hand",target:1,when:e=>e.type==="play"&&e.dice.every(n=>n%2===1)},
-        {id:"low",label:"Play a hand totaling under 15",target:2,when:e=>e.type==="play"&&sum(e.dice)<15},
-        {id:"fresh",label:"Win a round with rerolls left",target:2,when:e=>e.type==="round-win"&&e.rerollsLeft>0}
-      ]},
-      {id:"pearl",name:"Moonlit Pearl",sheet:moonlitPearlSheet,accent:"#ad5a8c",effect:"Pearl shimmer",tasks:[
-        {id:"moonTotal",label:"Play 3 hands totaling a multiple of 5",target:3,when:e=>e.type==="play"&&sum(e.dice)%5===0},
-        {id:"mirror",label:"Play mirrored outer dice",target:2,when:e=>e.type==="play"&&e.dice[0]===e.dice[4]},
-        {id:"full",label:"Play a Full House",target:1,when:e=>e.type==="play"&&e.hand==="full"},
-        {id:"lucky",label:"Reroll a die into 1",target:3,when:e=>e.type==="reroll"&&e.ones},
-        {id:"starlight",label:"Score 150 or more with one hand",target:1,when:e=>e.type==="play"&&e.score>=150},
-        {id:"moonPath",label:"Reach round 5",target:1,when:e=>e.type==="round-win"&&e.round>=5}
-      ]},
-      {id:"crystal",name:"Twilight Crystal",sheet:twilightCrystalSheet,accent:"#9a65d2",effect:"Crystal sparks",tasks:[
-        {id:"three",label:"Play 2 Three of a Kind",target:2,when:e=>e.type==="play"&&e.hand==="three"},
-        {id:"four",label:"Play a Four of a Kind",target:1,when:e=>e.type==="play"&&e.hand==="four"},
-        {id:"five",label:"Play a Five of a Kind",target:1,when:e=>e.type==="play"&&e.hand==="five"},
-        {id:"all",label:"Reroll all 5 dice",target:2,when:e=>e.type==="reroll"&&e.changed===5},
-        {id:"six",label:"Play 3 hands containing a 6",target:3,when:e=>e.type==="play"&&e.dice.includes(6)},
-        {id:"twilight",label:"Win a round from round 10 onward",target:1,when:e=>e.type==="round-win"&&e.round>=10}
-      ]}
-    ];
-    const skinFaces = {};
     let garden = loadGarden();
     let secretCodeBuffer = "";
+    const skinFaceLoader = createSkinFaceLoader(skinPacks, {
+      onReady: () => {
+        if (state) render();
+        if (document.querySelector("#modal")?.dataset.view === "skins") showSkinMenu();
+      },
+      onError: () => toast("A dice sheet could not be prepared.")
+    });
 
     const spriteIcon = name => `<span class="sprite-icon ${name}" aria-hidden="true"></span>`;
     const icons = {
@@ -75,40 +44,6 @@ import twilightCrystalSheet from "./assets/twilight-crystal-pack_keyed.png";
       bag:spriteIcon("bag")
     };
 
-    const charmFamilies = [
-      {name:"Daisy Charm",test:c=>c.phase==="play"&&c.dice.includes(1),desc:"Play a hand containing a 1"},
-      {name:"Royal Ribbon",test:c=>c.phase==="play"&&c.dice.includes(6),desc:"Play a hand containing a 6"},
-      {name:"Cloud Charm",test:c=>c.phase==="play"&&c.rerollsUsed===0,desc:"Play without rerolling"},
-      {name:"Rainy Charm",test:c=>c.phase==="play"&&c.rerollsLeft===0,desc:"Play with no rerolls left"},
-      {name:"Tea Charm",test:c=>c.phase==="play"&&sum(c.dice)<15,desc:"Play dice totaling less than 15"},
-      {name:"Sunbeam Charm",test:c=>c.phase==="play"&&sum(c.dice)>22,desc:"Play dice totaling more than 22"},
-      {name:"Twin Charm",test:c=>c.phase==="play"&&c.hand.id==="pair",desc:"Play exactly one Pair"},
-      {name:"Picnic Charm",test:c=>c.phase==="play"&&["twoPair","full"].includes(c.hand.id),desc:"Play Two Pair or a Full House"},
-      {name:"Crown Charm",test:c=>c.phase==="play"&&["three","four","five"].includes(c.hand.id),desc:"Play at least Three of a Kind"},
-      {name:"Rainbow Charm",test:c=>c.phase==="play"&&c.hand.id==="straight",desc:"Play a Straight"},
-      {name:"Evening Charm",test:c=>c.phase==="play"&&c.dice.every(n=>n%2===0),desc:"Play only even dice"},
-      {name:"Morning Charm",test:c=>c.phase==="play"&&c.dice.every(n=>n%2===1),desc:"Play only odd dice"},
-      {name:"Mirror Charm",test:c=>c.phase==="play"&&c.dice[0]===c.dice[4]&&c.dice[1]===c.dice[3],desc:"Play mirrored outer dice"},
-      {name:"Bouquet Charm",test:c=>c.phase==="play"&&new Set(c.dice).size<=3,desc:"Play three or fewer unique values"},
-      {name:"Butterfly Charm",test:c=>c.phase==="play"&&Math.max(...c.dice)-Math.min(...c.dice)<=2,desc:"Largest and smallest differ by 2 or less"},
-      {name:"Lucky Seven",test:c=>c.phase==="play"&&(c.dice[0]+c.dice[4]===7),desc:"First and last dice total 7"},
-      {name:"Moon Charm",test:c=>c.phase==="play"&&sum(c.dice)%5===0,desc:"Dice total is divisible by 5"},
-      {name:"Comet Charm",test:c=>c.phase==="play"&&c.dice.every((n,i,a)=>i===0||n>=a[i-1]),desc:"Dice never descend left to right"},
-      {name:"Frog Charm",test:c=>c.phase==="reroll"&&c.newDice.some((n,i)=>c.changed[i]&&n===6),desc:"Reroll at least one die into a 6"},
-      {name:"Berry Charm",test:c=>c.phase==="reroll"&&c.newDice.some((n,i)=>c.changed[i]&&n===1),desc:"Reroll at least one die into a 1"},
-      {name:"Wish Charm",test:c=>c.phase==="reroll"&&c.oldHand.id===c.newHand.id,desc:"Reroll without changing hand type"},
-      {name:"Acorn Charm",test:c=>c.phase==="reroll"&&c.changed.filter(Boolean).length===1,desc:"Reroll exactly one die"},
-      {name:"Confetti Charm",test:c=>c.phase==="reroll"&&c.changed.filter(Boolean).length===5,desc:"Reroll all five dice"},
-      {name:"Swan Charm",test:c=>c.phase==="play"&&c.dice[0]===c.dice[4],desc:"First and last dice match"}
-    ];
-
-    const variants = [
-      {id:"petals",tone:"#a8e6cf",label:"Mint",effect:rank=>({petals:8+rank*4,mult:0,rerolls:0})},
-      {id:"mult",tone:"#f5a9cf",label:"Rose",effect:rank=>({petals:0,mult:1+Math.floor(rank/2),rerolls:0})},
-      {id:"both",tone:"#c8b6ff",label:"Lilac",effect:rank=>({petals:4+rank*2,mult:1,rerolls:0})},
-      {id:"reroll",tone:"#ffd98e",label:"Golden",effect:rank=>({petals:0,mult:0,rerolls:1})}
-    ];
-
     let state;
     let selected = new Set();
     let busy = false;
@@ -118,7 +53,7 @@ import twilightCrystalSheet from "./assets/twilight-crystal-pack_keyed.png";
       return {
         level:1,target:targetFor(1),roundScore:0,handsLeft:3,rerollsLeft:3,
         dice:rollFive(),initialDice:[],rerollsUsed:0,handLevels:Object.fromEntries(handsData.map(h=>[h.id,1])),
-        charms:[],sound:soundOn,phase:"play",totalScore:0,runStarted:Date.now()
+        charms:[],sound:audio.enabled,phase:"play",totalScore:0,runStarted:Date.now()
       };
     }
     function baseStats(){
@@ -202,68 +137,12 @@ import twilightCrystalSheet from "./assets/twilight-crystal-pack_keyed.png";
       state.gardenRewarded=true;garden.moonDrops++;saveGarden();
       toast("Lady Luma saved a Moon Drop for this journey.");
     }
-    async function prepareSkinFaces(pack){
-      if(skinFaces[pack.id])return;
-      const image=new Image();image.decoding="async";
-      const loaded=new Promise((resolve,reject)=>{image.onload=resolve;image.onerror=reject});
-      image.src=pack.sheet;await loaded;
-      const frameWidth=Math.floor(image.naturalWidth/6),frameHeight=image.naturalHeight;
-      skinFaces[pack.id]=Array.from({length:6},(_,index)=>{
-        const frame=document.createElement("canvas");frame.width=frameWidth;frame.height=frameHeight;
-        const context=frame.getContext("2d",{willReadFrequently:true});
-        context.drawImage(image,index*frameWidth,0,frameWidth,frameHeight,0,0,frameWidth,frameHeight);
-        const pixels=context.getImageData(0,0,frameWidth,frameHeight),data=pixels.data;
-        for(let pixel=0;pixel<data.length;pixel+=4){
-          const red=data[pixel],green=data[pixel+1],blue=data[pixel+2],alpha=data[pixel+3];
-          if(!alpha)continue;
-          // The replacement sheets already have alpha. Only strip the narrow, leftover lime matte
-          // from their outside edge; the more blue/white mint artwork is intentionally preserved.
-          const greenLead=green-Math.max(red,blue);
-          if(red<92&&blue<92&&green>125&&greenLead>68){
-            const key=Math.min(1,(greenLead-68)/94);
-            data[pixel+3]=Math.round(alpha*(1-key));
-            data[pixel+1]=Math.min(green,Math.max(red,blue)+14); // despill the antialiased edge
-          }
-        }
-        context.putImageData(pixels,0,0);
-        // A few one-pixel matte fragments live on the frame seams. Crop the connected die body,
-        // rather than every remaining non-transparent pixel, so those fragments cannot enlarge it.
-        const alphaAt=index=>data[index*4+3]>=32;
-        let seedX=Math.floor(frameWidth/2),seedY=Math.floor(frameHeight/2);
-        if(!alphaAt(seedY*frameWidth+seedX)){
-          let found=false;
-          for(let radius=1;radius<Math.max(frameWidth,frameHeight)&&!found;radius++)for(let y=Math.max(0,seedY-radius);y<=Math.min(frameHeight-1,seedY+radius)&&!found;y++)for(let x=Math.max(0,seedX-radius);x<=Math.min(frameWidth-1,seedX+radius);x++){
-            if(alphaAt(y*frameWidth+x)){seedX=x;seedY=y;found=true;break}
-          }
-        }
-        let left=frameWidth,top=frameHeight,right=-1,bottom=-1;
-        if(alphaAt(seedY*frameWidth+seedX)){
-          const visited=new Uint8Array(frameWidth*frameHeight),stack=[seedY*frameWidth+seedX];
-          visited[stack[0]]=1;
-          const enqueue=next=>{if(!visited[next]&&alphaAt(next)){visited[next]=1;stack.push(next)}};
-          while(stack.length){
-            const point=stack.pop(),x=point%frameWidth,y=Math.floor(point/frameWidth);
-            left=Math.min(left,x);top=Math.min(top,y);right=Math.max(right,x);bottom=Math.max(bottom,y);
-            if(x>0)enqueue(point-1);if(x<frameWidth-1)enqueue(point+1);
-            if(y>0)enqueue(point-frameWidth);if(y<frameHeight-1)enqueue(point+frameWidth);
-          }
-        }
-        if(right<left||bottom<top){left=0;top=0;right=frameWidth-1;bottom=frameHeight-1}
-        const width=right-left+1,height=bottom-top+1,padding=7;
-        const face=document.createElement("canvas");face.width=face.height=360;
-        const faceContext=face.getContext("2d");
-        // Every extracted face fills the same square as a normal die. Deliberately stretching the
-        // slightly portrait source art avoids a tiny, floating die inside the interaction target.
-        faceContext.drawImage(frame,left,top,width,height,padding,padding,360-padding*2,360-padding*2);
-        return face.toDataURL("image/png");
-      });
-    }
     function prepareSkinSheets(){
-      Promise.all(skinPacks.map(prepareSkinFaces)).then(()=>{if(state)render();if(document.querySelector("#modal")?.dataset.view==="skins")showSkinMenu()}).catch(()=>toast("A dice sheet could not be prepared."));
+      skinFaceLoader.prepare();
     }
     function skinFace(packId,value,preview=false){
       if(packId==="default")return `<span class="preview-pips preview-${value}" aria-hidden="true">${pips(value)}</span>`;
-      const source=skinFaces[packId]?.[value-1];
+      const source=skinFaceLoader.face(packId,value);
       return source?`<img class="skin-face${preview?" preview-face":""}" src="${source}" alt="" aria-hidden="true">`:`<span class="skin-loading" aria-hidden="true"></span>`;
     }
     function selectSkin(id){
@@ -564,17 +443,7 @@ import twilightCrystalSheet from "./assets/twilight-crystal-pack_keyed.png";
     }
     function emitSkinEffect(trigger){
       const skin=activeSkin();
-      if(trigger!=="roll"||!skin||!effectUnlocked(skin)||reduceMotion)return;
-      const colorsBySkin={sakura:["#ff9fc8","#ffd2e4"],mint:["#83dbc0","#dffff4"],pearl:["#f0c2da","#fff2d8"],crystal:["#d8a0ff","#a8d8ff"]};
-      const glyphsBySkin={sakura:["✿","·"],mint:["❋","•"],pearl:["✦","·"],crystal:["◆","✧"]};
-      const table=document.querySelector(".moon-table"),rect=table?.getBoundingClientRect();if(!rect)return;
-      for(let i=0;i<12;i++){
-        const particle=document.createElement("i"),angle=Math.random()*Math.PI*2,distance=46+Math.random()*105;
-        particle.className=`skin-effect skin-effect-${skin.id}`;particle.textContent=glyphsBySkin[skin.id][i%2];
-        particle.style.left=`${rect.left+rect.width*(.22+Math.random()*.56)}px`;particle.style.top=`${rect.top+rect.height*(.4+Math.random()*.34)}px`;
-        particle.style.color=colorsBySkin[skin.id][i%2];particle.style.setProperty("--drift-x",`${Math.cos(angle)*distance}px`);particle.style.setProperty("--drift-y",`${Math.sin(angle)*distance-62}px`);
-        document.body.appendChild(particle);setTimeout(()=>particle.remove(),1000);
-      }
+      if(trigger==="roll"&&skin&&effectUnlocked(skin))effects.skinEffect(skin);
     }
     function confirmRestart(){
       showModal(`<h2>Start over?</h2><p class="lead">This will replace the current journey and its charms with a fresh run.</p>
@@ -588,42 +457,16 @@ import twilightCrystalSheet from "./assets/twilight-crystal-pack_keyed.png";
     function flashCharms(list){
       list.forEach(ch=>{const i=state.charms.indexOf(ch);const el=document.querySelector(`[data-charm="${i}"]`);if(el){el.classList.remove("active");void el.offsetWidth;el.classList.add("active")}});
     }
-    function burst(x,y,n){
-      for(let i=0;i<n;i++){const e=document.createElement("i"),a=Math.random()*Math.PI*2,d=40+Math.random()*150;e.className="burst";e.style.cssText=`left:${x}px;top:${y}px;background:${colors[i%colors.length]};--x:${Math.cos(a)*d}px;--y:${Math.sin(a)*d}px`;document.body.appendChild(e);setTimeout(()=>e.remove(),1100)}
-    }
-    function popScore(n){const r=$("#preview").getBoundingClientRect(),e=document.createElement("div");e.className="score-pop";e.textContent=`+${n.toLocaleString()}`;e.style.left=`${r.left+r.width/2-28}px`;e.style.top=`${r.top}px`;document.body.appendChild(e);setTimeout(()=>e.remove(),1200)}
-    function lumaParticles(kind,count){
-      if(reduceMotion)return;
-      const stage=$("#guardian");if(!stage)return;
-      const r=stage.getBoundingClientRect();
-      for(let i=0;i<count;i++){
-        const e=document.createElement("i"),angle=Math.random()*Math.PI*2,range=34+Math.random()*54;
-        e.className=`luma-${kind}`;e.textContent=kind==="star"?"✦":"♥";
-        e.style.left=`${r.left+r.width*(.2+Math.random()*.6)}px`;
-        e.style.top=`${r.top+r.height*(.16+Math.random()*.58)}px`;
-        e.style.setProperty("--drift-x",`${Math.cos(angle)*range}px`);
-        e.style.setProperty("--drift-y",`${Math.sin(angle)*range-28}px`);
-        document.body.appendChild(e);setTimeout(()=>e.remove(),950);
-      }
-    }
-    function lumaHearts(){lumaParticles("heart",6)}
-    function lumaStars(mult){lumaParticles("star",Math.min(10,3+mult))}
-
-    function initAudio(){
-      if(audioCtx)return true;
-      const AudioEngine=window.AudioContext||window.webkitAudioContext;
-      if(!AudioEngine)return false;
-      audioCtx=new AudioEngine();return true;
-    }
-    function tone(freq,duration,type="sine",volume=.06,delay=0){
-      if(!soundOn||!initAudio())return;const o=audioCtx.createOscillator(),g=audioCtx.createGain(),t=audioCtx.currentTime+delay;o.type=type;o.frequency.setValueAtTime(freq,t);g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(volume,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+duration);o.connect(g);g.connect(audioCtx.destination);o.start(t);o.stop(t+duration+.02)
-    }
-    function clickSound(f=440,v=.03){tone(f,.08,"sine",v)}
-    function rollSound(){[0,1,2,3].forEach(i=>tone(180+i*55,.08,"triangle",.025,i*.06))}
-    function scoreSound(mult){tone(520,.15,"sine",.05);tone(660,.18,"sine",.04,.08);if(mult>5)tone(880,.22,"sine",.04,.16)}
-    function winSound(){[523,659,784,1047].forEach((f,i)=>tone(f,.3,"sine",.05,i*.1))}
-    function failSound(){[420,350,280].forEach((f,i)=>tone(f,.25,"triangle",.04,i*.14))}
-    function updateSound(){$("#soundBtn").innerHTML=soundOn?icons.sound:icons.mute;localStorage.setItem("petalia-sound",JSON.stringify(soundOn))}
+    const burst=(x,y,n)=>effects.burst(x,y,n);
+    const popScore=n=>effects.popScore(n);
+    const lumaHearts=()=>effects.lumaHearts();
+    const lumaStars=mult=>effects.lumaStars(mult);
+    const clickSound=(f=440,v=.03)=>audio.click(f,v);
+    const rollSound=()=>audio.roll();
+    const scoreSound=mult=>audio.score(mult);
+    const winSound=()=>audio.win();
+    const failSound=()=>audio.fail();
+    function updateSound(){$("#soundBtn").innerHTML=audio.enabled?icons.sound:icons.mute;audio.persist()}
 
     function init(){
       $("#brandMark").innerHTML=icons.flower;
@@ -632,7 +475,7 @@ import twilightCrystalSheet from "./assets/twilight-crystal-pack_keyed.png";
       $("#helpBtn").innerHTML=icons.help;$("#soundBtn").innerHTML=icons.sound;$("#sideToggle").innerHTML=icons.bag;
       $("#newRunBtn").onclick=newRun;$("#continueBtn").onclick=continueRun;$("#rerollBtn").onclick=reroll;$("#playBtn").onclick=playHand;
       $("#helpBtn").onclick=showHelp;$("#handsBtn").onclick=showHandLevels;$("#skinsBtn").onclick=showSkinMenu;$("#restartBtn").onclick=confirmRestart;
-      $("#soundBtn").onclick=()=>{soundOn=!soundOn;updateSound();if(soundOn)clickSound(660,.05)};
+      $("#soundBtn").onclick=()=>{const enabled=audio.toggle();updateSound();if(enabled)clickSound(660,.05)};
       $("#guardian .pet-button").onclick=petTap;
       $("#sideToggle").onclick=()=>$("#sidePanel").classList.toggle("open");
       $("#overlay").onclick=e=>{if(e.target===$("#overlay")&&state?.phase==="play")closeModal()};
