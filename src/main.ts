@@ -6,6 +6,7 @@ import { createSkinFaceLoader } from "./skin-faces";
 import { createAudioController } from "./audio-controller";
 import { createVisualEffects } from "./visual-effects";
 import { createRerollCharmEffects } from "./reroll-charm-effects";
+import { createLumaSpeech } from "./luma-speech";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -51,9 +52,11 @@ import { createRerollCharmEffects } from "./reroll-charm-effects";
     let pendingChoices = [];
     const appContext = {
       get state(){return state}, set state(value){state=value},
+      query:$,
       toast: (...args)=>toast(...args)
     };
     const { applyRerollCharmEffects } = createRerollCharmEffects(appContext);
+    const { speechForHand, roundSpeech } = createLumaSpeech(appContext);
 
     function defaultState(){
       return {
@@ -412,23 +415,6 @@ import { createRerollCharmEffects } from "./reroll-charm-effects";
     }
     function updateContinue(){$("#continueBtn").disabled=!localStorage.getItem(SAVE_KEY)}
 
-    function speechForHand(){
-      const h=evaluate(state.dice),lines={
-        high:["A gentle start. The next roll may bloom.","Every little petal still counts."],
-        pair:["A tiny pair found each other!","Two matching friends. How sweet."],
-        twoPair:["Two pairs are having a garden picnic!"],
-        three:["Three of a kind! A proper little club."],
-        straight:["A perfect staircase of stars!"],
-        full:["A full house! Everyone is home."],
-        four:["Four matching blooms! The garden is impressed."],
-        five:["Five of a kind! Even the moon blinked twice."]
-      };
-      const a=lines[h.id];$("#speech").textContent=a[Math.floor(Math.random()*a.length)];
-    }
-    function roundSpeech(){
-      const lines=["The moon path grows brighter.","New round, new little possibilities.","Your charms are humming softly.","The gate is closer than it looks."];
-      return lines[Math.floor(Math.random()*lines.length)];
-    }
     function showHelp(){
       showModal(`<h2>How to play</h2><p class="lead">Build dice-poker hands, stack lucky charms, and clear all 25 rounds.</p><div class="tutorial">
         <div class="tip"><b>1. Choose dice</b><span>Tap any dice you do not want. The raised pink dice will be rerolled.</span></div>
