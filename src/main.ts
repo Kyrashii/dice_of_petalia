@@ -20,6 +20,7 @@ import { createDiceSelection } from "./dice-selection";
 import { createDiceRenderer } from "./dice-renderer";
 import { createCharmRenderer } from "./charm-renderer";
 import { createGameRenderer } from "./game-renderer";
+import { createGardenProgress } from "./garden-progress";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -105,6 +106,8 @@ import { createGameRenderer } from "./game-renderer";
     const { effectText, renderCharms } = createCharmRenderer(appContext);
     appContext.previewStats=()=>previewStats();appContext.renderDice=renderDice;appContext.renderCharms=renderCharms;appContext.updateSound=updateSound;
     const { updateGardenPhase, render } = createGameRenderer(appContext);
+    appContext.showSkinMenu=()=>showSkinMenu();
+    const { recordGardenEvent, grantMoonDropForRun } = createGardenProgress(appContext);
 
     function defaultState(){
       return {
@@ -129,25 +132,6 @@ import { createGameRenderer } from "./game-renderer";
     }
 
     const { defaultGarden, loadGarden, saveGarden, taskDone, completedTasks, isUnlocked, effectUnlocked, activeSkin } = gardenState;
-    function recordGardenEvent(event){
-      let changed=false,justUnlocked=[];
-      skinPacks.forEach(pack=>pack.tasks.forEach(task=>{
-        if(taskDone(pack,task)||!task.when(event))return;
-        const progress=garden.packs[pack.id].progress;
-        progress[task.id]=Math.min(task.target,(progress[task.id]||0)+1);
-        changed=true;
-        if(taskDone(pack,task))justUnlocked.push(`${pack.name}: ${task.label}`);
-      }));
-      if(!changed)return;
-      saveGarden();
-      if(justUnlocked.length)toast(`Garden task complete: ${justUnlocked[0]}`);
-      if(document.querySelector("#overlay").classList.contains("show")&&document.querySelector("#modal")?.dataset.view==="skins")showSkinMenu();
-    }
-    function grantMoonDropForRun(){
-      if(state.level<5||state.gardenRewarded)return;
-      state.gardenRewarded=true;garden.moonDrops++;saveGarden();
-      toast("Lady Luma saved a Moon Drop for this journey.");
-    }
     function selectSkin(id){
       const pack=skinPacks.find(item=>item.id===id);
       if(pack&&!isUnlocked(pack)){toast(`${pack.name} needs ${Math.max(0,5-completedTasks(pack))} more garden task${completedTasks(pack)===4?"":"s"}.`);return}
