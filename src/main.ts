@@ -8,6 +8,7 @@ import { createVisualEffects } from "./visual-effects";
 import { createRerollCharmEffects } from "./reroll-charm-effects";
 import { createLumaSpeech } from "./luma-speech";
 import { createDiceAnimation } from "./dice-animation";
+import { createPetSpriteRenderer } from "./pet-sprite-renderer";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -54,11 +55,17 @@ import { createDiceAnimation } from "./dice-animation";
     const appContext = {
       get state(){return state}, set state(value){state=value},
       query:$,
+      get petImage(){return petImage}, set petImage(value){petImage=value},
+      get petImageReady(){return petImageReady}, set petImageReady(value){petImageReady=value},
+      get lastPetState(){return lastPetState}, set lastPetState(value){lastPetState=value},
+      get lastPetFrame(){return lastPetFrame}, set lastPetFrame(value){lastPetFrame=value},
+      petRows,
       toast: (...args)=>toast(...args)
     };
     const { applyRerollCharmEffects } = createRerollCharmEffects(appContext);
     const { speechForHand, roundSpeech } = createLumaSpeech(appContext);
     const { animateDice } = createDiceAnimation(appContext);
+    const { setPetFrame } = createPetSpriteRenderer(appContext);
 
     function defaultState(){
       return {
@@ -251,22 +258,6 @@ import { createDiceAnimation } from "./dice-animation";
       if(selected.has(i))selected.delete(i);else selected.add(i);
       renderDice();$("#rerollBtn").disabled=state.rerollsLeft<1||selected.size===0;
       clickSound(430,.03);
-    }
-    function setPetFrame(petState,frame){
-      lastPetState=petState;lastPetFrame=frame;
-      document.querySelectorAll("canvas.pet-sprite").forEach(canvas=>{
-        canvas.dataset.petState=petState;
-        canvas.dataset.petFrame=String(frame);
-        if(!petImageReady)return;
-        const context=canvas.getContext("2d");
-        const sourceWidth=petImage.naturalWidth/4,sourceHeight=petImage.naturalHeight/3;
-        context.clearRect(0,0,canvas.width,canvas.height);
-        context.drawImage(
-          petImage,
-          frame*sourceWidth,petRows[petState]*sourceHeight,sourceWidth,sourceHeight,
-          0,0,canvas.width,canvas.height
-        );
-      });
     }
     function loadPetSheet(){
       const cssValue=getComputedStyle(document.documentElement).getPropertyValue("--pet-sheet").trim();
