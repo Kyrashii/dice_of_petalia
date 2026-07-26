@@ -12,6 +12,7 @@ import { createPetSpriteRenderer } from "./pet-sprite-renderer";
 import { createPetSheetLoader } from "./pet-sheet-loader";
 import { createPetAnimation } from "./pet-animation";
 import { createUiFeedback } from "./ui-feedback";
+import { createGameServices } from "./game-services";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -65,6 +66,7 @@ import { createUiFeedback } from "./ui-feedback";
       get petTimer(){return petTimer}, set petTimer(value){petTimer=value},
       petRows,
       reduceMotion,
+      audio,effects,icons,
       toast: (...args)=>toast(...args)
     };
     const { applyRerollCharmEffects } = createRerollCharmEffects(appContext);
@@ -75,6 +77,7 @@ import { createUiFeedback } from "./ui-feedback";
     const { loadPetSheet } = createPetSheetLoader(appContext);
     const { startPetIdle, animatePet } = createPetAnimation(appContext);
     const { showModal, closeModal, toast, wait, flashCharms } = createUiFeedback(appContext);
+    const { burst, popScore, lumaHearts, lumaStars, clickSound, rollSound, scoreSound, winSound, failSound, updateSound } = createGameServices(appContext);
 
     function defaultState(){
       return {
@@ -408,16 +411,6 @@ import { createUiFeedback } from "./ui-feedback";
       <div style="display:flex;gap:10px;justify-content:center"><button class="mini-btn" id="cancelRestart">Keep playing</button><button class="primary" id="yesRestart" style="margin:0">Start fresh</button></div>`);
       $("#cancelRestart").onclick=closeModal;$("#yesRestart").onclick=()=>{closeModal();newRun()};
     }
-    const burst=(x,y,n)=>effects.burst(x,y,n);
-    const popScore=n=>effects.popScore(n);
-    const lumaHearts=()=>effects.lumaHearts();
-    const lumaStars=mult=>effects.lumaStars(mult);
-    const clickSound=(f=440,v=.03)=>audio.click(f,v);
-    const rollSound=()=>audio.roll();
-    const scoreSound=mult=>audio.score(mult);
-    const winSound=()=>audio.win();
-    const failSound=()=>audio.fail();
-    function updateSound(){$("#soundBtn").innerHTML=audio.enabled?icons.sound:icons.mute;audio.persist()}
 
     function init(){
       $("#brandMark").innerHTML=icons.flower;
