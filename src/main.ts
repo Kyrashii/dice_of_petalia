@@ -5,6 +5,7 @@ import { burstColors, charmFamilies, skinPacks, variants } from "./game-content"
 import { createSkinFaceLoader } from "./skin-faces";
 import { createAudioController } from "./audio-controller";
 import { createVisualEffects } from "./visual-effects";
+import { createRerollCharmEffects } from "./reroll-charm-effects";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -48,6 +49,11 @@ import { createVisualEffects } from "./visual-effects";
     let selected = new Set();
     let busy = false;
     let pendingChoices = [];
+    const appContext = {
+      get state(){return state}, set state(value){state=value},
+      toast: (...args)=>toast(...args)
+    };
+    const { applyRerollCharmEffects } = createRerollCharmEffects(appContext);
 
     function defaultState(){
       return {
@@ -311,10 +317,6 @@ import { createVisualEffects } from "./visual-effects";
       selected.clear();busy=false;
       speechForHand();persistSafe();render();
       flashCharms(hits);
-    }
-    function applyRerollCharmEffects(hits){
-      hits.forEach(ch=>{const e=ch.variant.effect(ch.rank);if(e.rerolls)state.rerollsLeft+=e.rerolls});
-      if(hits.length)toast(`${hits.length} charm${hits.length>1?"s":""} twinkled!`);
     }
     async function playHand(){
       if(busy)return;
