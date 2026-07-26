@@ -233,19 +233,8 @@
     .score-box .value{font-size:clamp(20px,3vw,29px);color:#604a79!important}
     .moon-table{
       position:relative;z-index:1;min-height:205px;margin:16px 2px 7px;padding:12px 14px 22px;
-      overflow:hidden;border:3px solid #665083;border-radius:32px 32px 48% 48% / 28px 28px 34% 34%;
-      background:#8f79b0;box-shadow:5px 7px 0 #cdbde0
+      background:var(--dice-table) center / 100% 100% no-repeat;
     }
-    .moon-table:before{
-      content:"";position:absolute;z-index:0;left:4%;right:4%;height:140px;bottom:-90px;
-      border-radius:50%;background:#f8d982;border:4px solid #fff0b6;box-shadow:inset 0 12px 0 #e9bf62
-    }
-    .moon-table:after{
-      content:"";position:absolute;z-index:0;left:16%;right:16%;height:94px;bottom:-66px;
-      border-radius:50%;background:#8f79b0
-    }
-    .moon-table-stars i{position:absolute;width:5px;height:5px;background:#fff3bd;transform:rotate(45deg)}
-    .moon-table-stars i:nth-child(1){left:9%;top:27%}.moon-table-stars i:nth-child(2){right:11%;top:18%;width:8px;height:8px}.moon-table-stars i:nth-child(3){right:20%;bottom:27%}
     .hand-banner{margin:0 0 9px;min-height:42px;color:#fff;position:relative;z-index:2}
     .hand-banner strong{font-family:"Cooper Black","Arial Rounded MT Bold",sans-serif;font-size:21px;color:#fff}
     .hand-banner span{color:#f5ebff;font-size:11px}
@@ -332,6 +321,7 @@
       --garden-p3:url("./assets/garden-phase-3.webp");
       --garden-p4:url("./assets/garden-phase-4.webp");
       --garden-p5:url("./assets/garden-phase-5.webp");
+      --dice-table:url("./assets/dice_background_keyed.png");
       --ui-sprites:url("./assets/ui_sprites.png")
     }
     body{background:#dcd6ef}
