@@ -18,6 +18,7 @@ import { createGardenState } from "./garden-state";
 import { createSkinPresentation } from "./skin-presentation";
 import { createDiceSelection } from "./dice-selection";
 import { createDiceRenderer } from "./dice-renderer";
+import { createCharmRenderer } from "./charm-renderer";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -100,6 +101,7 @@ import { createDiceRenderer } from "./dice-renderer";
     const { toggleDie } = createDiceSelection(appContext);
     appContext.toggleDie=toggleDie;
     const { renderDice } = createDiceRenderer(appContext);
+    const { effectText, renderCharms } = createCharmRenderer(appContext);
 
     function defaultState(){
       return {
@@ -187,19 +189,6 @@ import { createDiceRenderer } from "./dice-renderer";
       $("#closeSkins").onclick=closeModal;
     }
 
-    function effectText(ch){
-      const e=ch.variant.effect(ch.rank),bits=[];
-      if(e.petals)bits.push(`+${e.petals} petals`);
-      if(e.mult)bits.push(`+${e.mult} sparkle`);
-      if(e.rerolls)bits.push(`+${e.rerolls} reroll`);
-      return bits.join(" & ");
-    }
-    function renderCharms(){
-      $("#charmCount").textContent=state.charms.length;
-      if(!state.charms.length){$("#charmList").innerHTML=`<div class="empty-note">Win the first round and Lady Luma will offer you a lucky charm.</div>`;return}
-      $("#charmList").innerHTML=state.charms.map((ch,i)=>`<div class="charm" data-charm="${i}" title="${ch.family.desc}">
-        <div class="charm-icon">${icons.charm(ch.variant.tone)}</div><div><strong>${ch.variant.label} ${ch.family.name}${ch.rank>1?` · ${ch.rank}`:""}</strong><span>${ch.family.desc}: ${effectText(ch)}</span></div></div>`).join("");
-    }
     function updateGardenPhase(){
       const phase=Math.min(5,Math.max(1,Math.ceil(state.level/5)));
       document.body.dataset.gardenPhase=String(phase);
