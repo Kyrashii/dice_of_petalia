@@ -19,6 +19,7 @@ import { createSkinPresentation } from "./skin-presentation";
 import { createDiceSelection } from "./dice-selection";
 import { createDiceRenderer } from "./dice-renderer";
 import { createCharmRenderer } from "./charm-renderer";
+import { createGameRenderer } from "./game-renderer";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -102,6 +103,8 @@ import { createCharmRenderer } from "./charm-renderer";
     appContext.toggleDie=toggleDie;
     const { renderDice } = createDiceRenderer(appContext);
     const { effectText, renderCharms } = createCharmRenderer(appContext);
+    appContext.previewStats=()=>previewStats();appContext.renderDice=renderDice;appContext.renderCharms=renderCharms;appContext.updateSound=updateSound;
+    const { updateGardenPhase, render } = createGameRenderer(appContext);
 
     function defaultState(){
       return {
@@ -189,30 +192,6 @@ import { createCharmRenderer } from "./charm-renderer";
       $("#closeSkins").onclick=closeModal;
     }
 
-    function updateGardenPhase(){
-      const phase=Math.min(5,Math.max(1,Math.ceil(state.level/5)));
-      document.body.dataset.gardenPhase=String(phase);
-      for(let i=1;i<=5;i++)document.body.classList.toggle(`garden-unlocked-${i}`,i<=phase);
-    }
-    function render(){
-      updateGardenPhase();
-      const p=previewStats();
-      $("#levelText").textContent=`Round ${state.level} / 25`;
-      $("#roundScore").textContent=state.roundScore.toLocaleString();
-      $("#targetScore").textContent=state.target.toLocaleString();
-      $("#progressFill").style.width=`${Math.min(100,state.roundScore/state.target*100)}%`;
-      $("#petals").textContent=p.petals;
-      $("#mult").textContent=p.mult;
-      $("#preview").textContent=p.total.toLocaleString();
-      $("#handName").textContent=p.hand.name+` · Lv ${state.handLevels[p.hand.id]}`;
-      $("#handDetail").textContent=p.hand.desc;
-      $("#rerolls").textContent=state.rerollsLeft;
-      $("#hands").textContent=state.handsLeft;
-      $("#guardian").classList.toggle("is-worried",state.phase==="play"&&state.handsLeft===1);
-      $("#rerollBtn").disabled=busy||state.rerollsLeft<1||selected.size===0;
-      $("#playBtn").disabled=busy;
-      renderDice();renderCharms();updateSound();
-    }
     function petTap(){
       animatePet("happy",1);clickSound(720,.05);
       lumaHearts();
