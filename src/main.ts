@@ -22,6 +22,7 @@ import { createCharmRenderer } from "./charm-renderer";
 import { createGameRenderer } from "./game-renderer";
 import { createGardenProgress } from "./garden-progress";
 import { createRunState } from "./run-state";
+import { createSkinEffects } from "./skin-effects";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -110,6 +111,7 @@ import { createRunState } from "./run-state";
     appContext.showSkinMenu=()=>showSkinMenu();
     const { recordGardenEvent, grantMoonDropForRun } = createGardenProgress(appContext);
     const { defaultState, baseStats, gameContext: context, triggered, previewStats } = createRunState(appContext);
+    const { emitSkinEffect } = createSkinEffects(appContext);
 
 
     const { defaultGarden, loadGarden, saveGarden, taskDone, completedTasks, isUnlocked, effectUnlocked, activeSkin } = gardenState;
@@ -287,10 +289,6 @@ import { createRunState } from "./run-state";
       showModal(`<h2>Your hand garden</h2><p class="lead">Upgraded hands grant more petals and sparkle.</p><div class="upgrade-list">
         ${handsData.map(h=>`<div class="upgrade" style="cursor:default"><em>Lv ${state.handLevels[h.id]}</em><strong>${h.name}</strong><span>${h.desc}</span></div>`).join("")}</div><button class="primary" id="closeHands">Close</button>`);
       $("#closeHands").onclick=closeModal;
-    }
-    function emitSkinEffect(trigger){
-      const skin=activeSkin();
-      if(trigger==="roll"&&skin&&effectUnlocked(skin))effects.skinEffect(skin);
     }
     function confirmRestart(){
       showModal(`<h2>Start over?</h2><p class="lead">This will replace the current journey and its charms with a fresh run.</p>
