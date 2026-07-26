@@ -332,7 +332,7 @@
       --garden-p3:url("./assets/garden-phase-3.webp");
       --garden-p4:url("./assets/garden-phase-4.webp");
       --garden-p5:url("./assets/garden-phase-5.webp");
-      --ui-sprites:url("./assets/ui-sprites.webp")
+      --ui-sprites:url("./assets/ui_sprites.png")
     }
     body{background:#dcd6ef}
     .garden-world{
