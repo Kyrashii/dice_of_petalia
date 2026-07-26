@@ -10,6 +10,7 @@ import { createLumaSpeech } from "./luma-speech";
 import { createDiceAnimation } from "./dice-animation";
 import { createPetSpriteRenderer } from "./pet-sprite-renderer";
 import { createPetSheetLoader } from "./pet-sheet-loader";
+import { createPetAnimation } from "./pet-animation";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -60,7 +61,9 @@ import { createPetSheetLoader } from "./pet-sheet-loader";
       get petImageReady(){return petImageReady}, set petImageReady(value){petImageReady=value},
       get lastPetState(){return lastPetState}, set lastPetState(value){lastPetState=value},
       get lastPetFrame(){return lastPetFrame}, set lastPetFrame(value){lastPetFrame=value},
+      get petTimer(){return petTimer}, set petTimer(value){petTimer=value},
       petRows,
+      reduceMotion,
       toast: (...args)=>toast(...args)
     };
     const { applyRerollCharmEffects } = createRerollCharmEffects(appContext);
@@ -69,6 +72,7 @@ import { createPetSheetLoader } from "./pet-sheet-loader";
     const { setPetFrame } = createPetSpriteRenderer(appContext);
     appContext.setPetFrame=setPetFrame;
     const { loadPetSheet } = createPetSheetLoader(appContext);
+    const { startPetIdle, animatePet } = createPetAnimation(appContext);
 
     function defaultState(){
       return {
@@ -261,23 +265,6 @@ import { createPetSheetLoader } from "./pet-sheet-loader";
       if(selected.has(i))selected.delete(i);else selected.add(i);
       renderDice();$("#rerollBtn").disabled=state.rerollsLeft<1||selected.size===0;
       clickSound(430,.03);
-    }
-    function startPetIdle(){
-      clearInterval(petTimer);clearTimeout(petTimer);
-      if(reduceMotion){setPetFrame("idle",0);return}
-      const sequence=[0,0,1,2,3,0],step=()=>{setPetFrame("idle",sequence[index]);index=(index+1)%sequence.length};
-      let index=0;step();petTimer=setInterval(step,620);
-    }
-    function animatePet(petState,loops=1){
-      clearInterval(petTimer);clearTimeout(petTimer);
-      if(reduceMotion){setPetFrame(petState,3);petTimer=setTimeout(startPetIdle,500);return}
-      let step=0;const total=4*Math.max(1,loops),speed=petState==="dice"?180:145;
-      setPetFrame(petState,0);
-      petTimer=setInterval(()=>{
-        step++;
-        if(step>=total){startPetIdle();return}
-        setPetFrame(petState,step%4);
-      },speed);
     }
     function petTap(){
       animatePet("happy",1);clickSound(720,.05);
