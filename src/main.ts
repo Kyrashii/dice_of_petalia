@@ -13,6 +13,7 @@ import { createPetSheetLoader } from "./pet-sheet-loader";
 import { createPetAnimation } from "./pet-animation";
 import { createUiFeedback } from "./ui-feedback";
 import { createGameServices } from "./game-services";
+import { createRunSave } from "./run-save";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -67,6 +68,7 @@ import { createGameServices } from "./game-services";
       petRows,
       reduceMotion,
       audio,effects,icons,
+      saveKey:SAVE_KEY,
       toast: (...args)=>toast(...args)
     };
     const { applyRerollCharmEffects } = createRerollCharmEffects(appContext);
@@ -78,6 +80,8 @@ import { createGameServices } from "./game-services";
     const { startPetIdle, animatePet } = createPetAnimation(appContext);
     const { showModal, closeModal, toast, wait, flashCharms } = createUiFeedback(appContext);
     const { burst, popScore, lumaHearts, lumaStars, clickSound, rollSound, scoreSound, winSound, failSound, updateSound } = createGameServices(appContext);
+    appContext.updateContinue=()=>updateContinue();
+    const { save, load, persistSafe } = createRunSave(appContext);
 
     function defaultState(){
       return {
@@ -99,28 +103,6 @@ import { createGameServices } from "./game-services";
       let petals=base.petals,mult=base.mult;
       list.forEach(ch=>{const e=ch.variant.effect(ch.rank);petals+=e.petals;mult+=e.mult});
       return {...base,petals,mult,total:petals*mult,triggers:list};
-    }
-    function save(){
-      localStorage.setItem(SAVE_KEY,JSON.stringify(state));
-      updateContinue();
-    }
-    function load(){
-      try{
-        const raw=JSON.parse(localStorage.getItem(SAVE_KEY));
-        if(!raw||!raw.level) return false;
-        state=raw;
-        state.charms=(state.charms||[]).map(ch=>hydrateCharm(ch));
-        return true;
-      }catch{return false}
-    }
-    function serializeCharm(ch){return {familyIndex:ch.familyIndex,variantIndex:ch.variantIndex,rank:ch.rank}}
-    function hydrateCharm(raw){
-      const fi=raw.familyIndex??0,vi=raw.variantIndex??0;
-      return {family:charmFamilies[fi],variant:variants[vi],familyIndex:fi,variantIndex:vi,rank:raw.rank||1};
-    }
-    function persistSafe(){
-      const copy={...state,charms:state.charms.map(serializeCharm)};
-      localStorage.setItem(SAVE_KEY,JSON.stringify(copy));updateContinue();
     }
 
     function defaultGarden(){
