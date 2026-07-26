@@ -11,6 +11,7 @@ import { createDiceAnimation } from "./dice-animation";
 import { createPetSpriteRenderer } from "./pet-sprite-renderer";
 import { createPetSheetLoader } from "./pet-sheet-loader";
 import { createPetAnimation } from "./pet-animation";
+import { createUiFeedback } from "./ui-feedback";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -73,6 +74,7 @@ import { createPetAnimation } from "./pet-animation";
     appContext.setPetFrame=setPetFrame;
     const { loadPetSheet } = createPetSheetLoader(appContext);
     const { startPetIdle, animatePet } = createPetAnimation(appContext);
+    const { showModal, closeModal, toast, wait, flashCharms } = createUiFeedback(appContext);
 
     function defaultState(){
       return {
@@ -405,13 +407,6 @@ import { createPetAnimation } from "./pet-animation";
       showModal(`<h2>Start over?</h2><p class="lead">This will replace the current journey and its charms with a fresh run.</p>
       <div style="display:flex;gap:10px;justify-content:center"><button class="mini-btn" id="cancelRestart">Keep playing</button><button class="primary" id="yesRestart" style="margin:0">Start fresh</button></div>`);
       $("#cancelRestart").onclick=closeModal;$("#yesRestart").onclick=()=>{closeModal();newRun()};
-    }
-    function showModal(html){$("#modal").innerHTML=html;$("#overlay").classList.add("show")}
-    function closeModal(){$("#overlay").classList.remove("show");delete $("#modal").dataset.view}
-    function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove("show"),1500)}
-    function wait(ms){return new Promise(r=>setTimeout(r,ms))}
-    function flashCharms(list){
-      list.forEach(ch=>{const i=state.charms.indexOf(ch);const el=document.querySelector(`[data-charm="${i}"]`);if(el){el.classList.remove("active");void el.offsetWidth;el.classList.add("active")}});
     }
     const burst=(x,y,n)=>effects.burst(x,y,n);
     const popScore=n=>effects.popScore(n);
