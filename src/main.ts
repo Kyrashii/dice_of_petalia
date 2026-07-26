@@ -7,6 +7,7 @@ import { createAudioController } from "./audio-controller";
 import { createVisualEffects } from "./visual-effects";
 import { createRerollCharmEffects } from "./reroll-charm-effects";
 import { createLumaSpeech } from "./luma-speech";
+import { createDiceAnimation } from "./dice-animation";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -57,6 +58,7 @@ import { createLumaSpeech } from "./luma-speech";
     };
     const { applyRerollCharmEffects } = createRerollCharmEffects(appContext);
     const { speechForHand, roundSpeech } = createLumaSpeech(appContext);
+    const { animateDice } = createDiceAnimation(appContext);
 
     function defaultState(){
       return {
@@ -300,9 +302,6 @@ import { createLumaSpeech } from "./luma-speech";
       lumaHearts();
       const lines=["You found my secret ticklish ear!","I am supervising the dice very carefully.","The moon says your next roll feels lucky.","One tiny hop for moral support!"];
       if(state)$("#speech").textContent=lines[Math.floor(Math.random()*lines.length)];
-    }
-    function animateDice(indices){
-      indices.forEach(i=>document.querySelector(`.die[data-i="${i}"]`)?.classList.add("rolling"));
     }
     async function reroll(){
       if(busy||state.rerollsLeft<1||!selected.size)return;
