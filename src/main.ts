@@ -17,6 +17,7 @@ import { createRunSave } from "./run-save";
 import { createGardenState } from "./garden-state";
 import { createSkinPresentation } from "./skin-presentation";
 import { createDiceSelection } from "./dice-selection";
+import { createDiceRenderer } from "./dice-renderer";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -97,6 +98,8 @@ import { createDiceSelection } from "./dice-selection";
     const { pips, prepareSkinSheets, skinFace } = createSkinPresentation(appContext);
     appContext.renderDice=()=>renderDice();appContext.clickSound=(...args)=>clickSound(...args);
     const { toggleDie } = createDiceSelection(appContext);
+    appContext.toggleDie=toggleDie;
+    const { renderDice } = createDiceRenderer(appContext);
 
     function defaultState(){
       return {
@@ -184,11 +187,6 @@ import { createDiceSelection } from "./dice-selection";
       $("#closeSkins").onclick=closeModal;
     }
 
-    function renderDice(){
-      const skin=activeSkin();
-      $("#diceRow").innerHTML=state.dice.map((n,i)=>`<button class="die ${skin?"skinned-die":""} ${selected.has(i)?"selected":""}" data-i="${i}" aria-label="Die ${i+1}: ${n}${selected.has(i)?", selected for reroll":""}">${skin?skinFace(skin.id,n):pips(n)}</button>`).join("");
-      document.querySelectorAll(".die").forEach(el=>el.onclick=()=>toggleDie(+el.dataset.i));
-    }
     function effectText(ch){
       const e=ch.variant.effect(ch.rank),bits=[];
       if(e.petals)bits.push(`+${e.petals} petals`);
