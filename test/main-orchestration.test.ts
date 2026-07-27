@@ -48,8 +48,16 @@ class FakeElement {
   onclick: ((event?: unknown) => void) | null = null;
   textContent = "";
   offsetWidth = 0;
+  private readonly attributes = new Map<string, string>();
 
   appendChild() { return this; }
+  setAttribute(name: string, value: string) { this.attributes.set(name, value); }
+  getAttribute(name: string) { return this.attributes.get(name) ?? null; }
+  toggleAttribute(name: string, force?: boolean) {
+    const enabled = force ?? !this.attributes.has(name);
+    if (enabled) this.attributes.set(name, ""); else this.attributes.delete(name);
+    return enabled;
+  }
   getBoundingClientRect() { return { left: 0, top: 0, width: 100, height: 100 }; }
   remove() {}
 }
@@ -58,7 +66,7 @@ function createBrowser() {
   const elements = new Map<string, FakeElement>();
   let keydownListener: ((event: { key: string; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean }) => void) | undefined;
   const ids = [
-    "brandMark", "guardian", "startGuardian", "settingsBtn", "sideToggle",
+    "brandMark", "guardian", "startGuardian", "settingsBtn", "sideToggle", "closeSidePanel",
     "newRunBtn", "continueBtn", "rerollBtn", "playBtn", "handsBtn", "skinsBtn",
     "restartBtn", "overlay", "modal", "toast", "diceRow", "levelText", "roundScore",
     "targetScore", "progressFill", "petals", "mult", "preview", "handName", "handDetail",
@@ -130,6 +138,24 @@ describe("main orchestration", () => {
 
     expect(browser.elements.get("#modal")?.innerHTML).toContain("Garden sounds");
     expect(() => browser.elements.get("#settingsSound")?.onclick?.()).not.toThrow();
+    expect(() => browser.elements.get("#mobilePageClose")?.onclick?.()).not.toThrow();
+    expect(browser.elements.get("#overlay")?.classList.contains("show")).toBe(false);
+  });
+
+  it("opens and closes the mobile charms page accessibly", async () => {
+    await import("../src/main");
+
+    browser.elements.get("#sideToggle")?.onclick?.();
+    expect(browser.elements.get("#sidePanel")?.classList.contains("open")).toBe(true);
+    expect(browser.elements.get("#sideToggle")?.getAttribute("aria-expanded")).toBe("true");
+    expect(browser.elements.get("#sideToggle")?.getAttribute("aria-label")).toBe("Close charms");
+    expect(browser.elements.get("#sidePanel")?.getAttribute("aria-hidden")).toBe("false");
+
+    browser.elements.get("#closeSidePanel")?.onclick?.();
+    expect(browser.elements.get("#sidePanel")?.classList.contains("open")).toBe(false);
+    expect(browser.elements.get("#sideToggle")?.getAttribute("aria-expanded")).toBe("false");
+    expect(browser.elements.get("#sideToggle")?.getAttribute("aria-label")).toBe("Open charms");
+    expect(browser.elements.get("#sidePanel")?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("reveals Garden Keeper tools only after the secret code", async () => {

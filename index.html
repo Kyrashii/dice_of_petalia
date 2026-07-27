@@ -40,7 +40,7 @@
             <h1>Dice of Petalia <small>Moon Garden Trial</small></h1>
           </div>
           <div class="header-actions">
-            <button class="icon-btn side-toggle" id="sideToggle" aria-label="Open charms"></button>
+            <button class="icon-btn side-toggle" id="sideToggle" aria-label="Open charms" aria-controls="sidePanel" aria-expanded="false"></button>
             <button class="settings-btn" id="settingsBtn" type="button">Settings</button>
           </div>
         </header>
@@ -78,6 +78,7 @@
       </main>
 
       <aside class="side-panel" id="sidePanel">
+        <button class="mobile-panel-close" id="closeSidePanel" type="button">Back to the table</button>
         <div class="section-title"><span>Your lucky charms</span><span id="charmCount">0</span></div>
         <div class="charm-list" id="charmList"></div>
         <div class="side-bottom">

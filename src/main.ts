@@ -162,6 +162,10 @@ import { createPetInteraction } from "./pet-interaction";
       if(document.querySelector("#modal")?.dataset.view==="settings")showSettings();
       toast("A Garden Keeper key has appeared in Settings.");
     }
+    function showDismissibleModal(html,onClose=closeModal){
+      showModal(`<button class="mobile-page-close" id="mobilePageClose" type="button">Back to the table</button>${html}`);
+      $("#mobilePageClose").onclick=onClose;
+    }
     function showSkinMenu(){
       const option=(id,name,unlocked,content,details="")=>`<article class="skin-card ${garden.selected===id?"selected":""} ${unlocked?"":"locked"}">
         <div class="skin-preview">${content}</div><div class="skin-card-copy"><div><h3>${name}</h3><p>${details}</p></div><button class="skin-select" data-skin="${id}" ${unlocked?"":"disabled"}>${garden.selected===id?"Selected":unlocked?"Use skin":"Locked"}</button></div></article>`;
@@ -175,7 +179,7 @@ import { createPetInteraction } from "./pet-interaction";
         }).join("");
         return `${option(pack.id,pack.name,unlocked,preview,`${complete} / 6 tasks · ${effect?`${pack.effect} unlocked`:unlocked?"Skin unlocked":"Unlocks at 5 / 6"}`)}<div class="skin-tasks"><div class="skin-progress"><b>${complete} / 6</b><span>${effect?"Cosmetic roll effect ready":"Complete all 6 for the roll effect"}</span></div><ol>${tasks}</ol>${garden.packs[pack.id].skipped?"<p class=\"skip-note\">Moon Drop skip used for this pack.</p>":""}</div>`;
       }).join("");
-      showModal(`<div class="skin-menu"><div class="skin-menu-head"><div><p class="eyebrow">Luma's Dice Garden</p><h2>Cosmetic dice skins</h2></div><div class="moon-drops"><b>${garden.moonDrops}</b><span>Moon Drops</span></div></div><p class="lead">Complete 5 of 6 tasks to use a pack. Completing all 6 unlocks its roll effect. End a run on round 5 or later to earn one Moon Drop.</p><div class="skin-list">${defaultCard}${packCards}</div><button class="primary" id="closeSkins">Close garden</button></div>`);
+      showDismissibleModal(`<div class="skin-menu"><div class="skin-menu-head"><div><p class="eyebrow">Luma's Dice Garden</p><h2>Cosmetic dice skins</h2></div><div class="moon-drops"><b>${garden.moonDrops}</b><span>Moon Drops</span></div></div><p class="lead">Complete 5 of 6 tasks to use a pack. Completing all 6 unlocks its roll effect. End a run on round 5 or later to earn one Moon Drop.</p><div class="skin-list">${defaultCard}${packCards}</div><button class="primary" id="closeSkins">Close garden</button></div>`);
       $("#modal").dataset.view="skins";
       document.querySelectorAll("[data-skin]").forEach(button=>button.onclick=()=>selectSkin(button.dataset.skin));
       document.querySelectorAll("[data-skip-pack]").forEach(button=>button.onclick=()=>skipGardenTask(button.dataset.skipPack,button.dataset.skipTask));
@@ -296,7 +300,7 @@ import { createPetInteraction } from "./pet-interaction";
     function updateContinue(){$("#continueBtn").disabled=!localStorage.getItem(SAVE_KEY)}
 
     function showHelp(){
-      showModal(`<h2>How to play</h2><p class="lead">Build dice-poker hands, stack lucky charms, and clear all 25 rounds.</p><div class="tutorial">
+      showDismissibleModal(`<h2>How to play</h2><p class="lead">Build dice-poker hands, stack lucky charms, and clear all 25 rounds.</p><div class="tutorial">
         <div class="tip"><b>1. Choose dice</b><span>Tap any dice you do not want. The raised pink dice will be rerolled.</span></div>
         <div class="tip"><b>2. Shape a hand</b><span>You have three rerolls each round. Pairs, straights and matching sets give more sparkle.</span></div>
         <div class="tip"><b>3. Play three hands</b><span>Each round gives you three scoring hands. Reach the target before they run out.</span></div>
@@ -307,7 +311,7 @@ import { createPetInteraction } from "./pet-interaction";
     function showSettings(){
       const soundLabel=audio.enabled?"On":"Off";
       const gardenKeeperLink=gardenKeeperToolsUnlocked?`<button class="setting-link garden-keeper-link" id="gardenKeeperTools" type="button"><span><b>Garden Keeper tools</b><small>Test this journey's hidden paths</small></span><strong aria-hidden="true">›</strong></button>`:"";
-      showModal(`<div class="settings-menu"><p class="eyebrow">Moon Garden</p><h2>Settings</h2><p class="lead">Settle in before your next hand.</p>
+      showDismissibleModal(`<div class="settings-menu"><p class="eyebrow">Moon Garden</p><h2>Settings</h2><p class="lead">Settle in before your next hand.</p>
         <div class="settings-list">
           <section class="setting-row"><div><h3>Garden sounds</h3><p>Music and little dice chimes.</p></div><button class="setting-toggle ${audio.enabled?"is-on":""}" id="settingsSound" type="button" role="switch" aria-checked="${audio.enabled}"><span aria-hidden="true"></span>${soundLabel}</button></section>
           <button class="setting-link" id="settingsHelp" type="button"><span><b>How to play</b><small>Rules, dice, and charms</small></span><strong aria-hidden="true">›</strong></button>
@@ -336,7 +340,7 @@ import { createPetInteraction } from "./pet-interaction";
     }
     function showGardenKeeperTools(){
       if(!gardenKeeperToolsUnlocked)return;
-      showModal(`<div class="garden-keeper-menu"><p class="eyebrow">Secret path</p><h2>Garden Keeper tools</h2><p class="lead">Shortcuts for testing the Moon Garden's full journey.</p>
+      showDismissibleModal(`<div class="garden-keeper-menu"><p class="eyebrow">Secret path</p><h2>Garden Keeper tools</h2><p class="lead">Shortcuts for testing the Moon Garden's full journey.</p>
         <div class="keeper-grid">
           <button class="keeper-action" id="keeperWin" type="button"><b>Clear this round</b><small>Choose a charm now</small></button>
           <button class="keeper-action" id="keeperFinal" type="button"><b>Jump to round 25</b><small>Prepare the final gate</small></button>
@@ -344,19 +348,19 @@ import { createPetInteraction } from "./pet-interaction";
           <button class="keeper-action" id="keeperResetRound" type="button"><b>Reset this round</b><small>Restore hands and rerolls</small></button>
           <button class="keeper-action" id="keeperGarden" type="button"><b>Open every dice garden</b><small>Unlock all cosmetic packs</small></button>
           <button class="keeper-action keeper-danger" id="keeperLose" type="button"><b>Lose this run</b><small>Show the loss ending now</small></button>
-        </div><button class="mini-btn" id="closeGardenKeeper" type="button">Back to settings</button></div>`);
+        </div><button class="mini-btn" id="closeGardenKeeper" type="button">Back to settings</button></div>`,showSettings);
       $("#keeperWin").onclick=forceRoundWin;$("#keeperFinal").onclick=jumpToFinalRound;
       $("#keeperSixes").onclick=()=>{state.dice=[6,6,6,6,6];state.initialDice=[...state.dice];state.rerollsUsed=0;selected.clear();busy=false;persistSafe();closeModal();render();speechForHand();toast("Five sixes are on the table.")};
       $("#keeperResetRound").onclick=resetTestRound;$("#keeperGarden").onclick=unlockAllSkinPacks;
       $("#keeperLose").onclick=()=>{busy=false;selected.clear();gameOver()};$("#closeGardenKeeper").onclick=showSettings;
     }
     function showHandLevels(){
-      showModal(`<h2>Your hand garden</h2><p class="lead">Upgraded hands grant more petals and sparkle.</p><div class="upgrade-list">
+      showDismissibleModal(`<h2>Your hand garden</h2><p class="lead">Upgraded hands grant more petals and sparkle.</p><div class="upgrade-list">
         ${handsData.map(h=>`<div class="upgrade" style="cursor:default"><em>Lv ${state.handLevels[h.id]}</em><strong>${h.name}</strong><span>${h.desc}</span></div>`).join("")}</div><button class="primary" id="closeHands">Close</button>`);
       $("#closeHands").onclick=closeModal;
     }
     function confirmRestart(){
-      showModal(`<h2>Start over?</h2><p class="lead">This will replace the current journey and its charms with a fresh run.</p>
+      showDismissibleModal(`<h2>Start over?</h2><p class="lead">This will replace the current journey and its charms with a fresh run.</p>
       <div style="display:flex;gap:10px;justify-content:center"><button class="mini-btn" id="cancelRestart">Keep playing</button><button class="primary" id="yesRestart" style="margin:0">Start fresh</button></div>`);
       $("#cancelRestart").onclick=closeModal;$("#yesRestart").onclick=()=>{closeModal();newRun()};
     }
@@ -369,7 +373,16 @@ import { createPetInteraction } from "./pet-interaction";
       $("#newRunBtn").onclick=newRun;$("#continueBtn").onclick=continueRun;$("#rerollBtn").onclick=reroll;$("#playBtn").onclick=playHand;
       $("#settingsBtn").onclick=showSettings;$("#handsBtn").onclick=showHandLevels;$("#skinsBtn").onclick=showSkinMenu;$("#restartBtn").onclick=confirmRestart;
       $("#guardian .pet-button").onclick=petTap;
-      $("#sideToggle").onclick=()=>$("#sidePanel").classList.toggle("open");
+      function setSidePanelOpen(open){
+        const panel=$("#sidePanel"),isMobile=window.matchMedia?.("(max-width: 800px)").matches;
+        panel.classList.toggle("open",open);
+        $("#sideToggle").setAttribute("aria-expanded",String(open));
+        $("#sideToggle").setAttribute("aria-label",open?"Close charms":"Open charms");
+        if(isMobile){panel.toggleAttribute("inert",!open);panel.setAttribute("aria-hidden",String(!open));}
+      }
+      $("#sideToggle").onclick=()=>setSidePanelOpen(!$("#sidePanel").classList.contains("open"));
+      $("#closeSidePanel").onclick=()=>setSidePanelOpen(false);
+      setSidePanelOpen(false);
       $("#overlay").onclick=e=>{if(e.target===$("#overlay")&&state?.phase==="play")closeModal()};
       document.addEventListener("keydown",e=>{checkSecretCode(e);if(e.key==="Escape"&&state?.phase==="play")closeModal();if(e.key>="1"&&e.key<="5"&&!$("#overlay").classList.contains("show"))toggleDie(+e.key-1)});
       window.addEventListener("beforeunload",()=>{if(state)persistSafe()});
