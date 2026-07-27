@@ -10,6 +10,6 @@ export function createGameServices(context) {
   const scoreSound=mult=>context.audio.score(mult);
   const winSound=()=>context.audio.win();
   const failSound=()=>context.audio.fail();
-  function updateSound(){context.query("#soundBtn").innerHTML=context.audio.enabled?context.icons.sound:context.icons.mute;context.audio.persist()}
+  function updateSound(){context.audio.persist()}
   return { burst, popScore, lumaHearts, lumaStars, clickSound, rollSound, scoreSound, winSound, failSound, updateSound };
 }

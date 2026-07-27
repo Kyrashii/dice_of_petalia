@@ -37,8 +37,11 @@ import { createPetInteraction } from "./pet-interaction";
     let petTimer = null;
     let petImage = null;
     let petImageReady = false;
+    let sadPetImage = null;
+    let sadPetImageReady = false;
     let lastPetState = "idle";
     let lastPetFrame = 0;
+    let lastLossPetFrame = 0;
     const petRows = {idle:0,happy:1,dice:2};
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const effects = createVisualEffects({query:$,colors:burstColors,reduceMotion});
@@ -47,6 +50,7 @@ import { createPetInteraction } from "./pet-interaction";
     const gardenState = createGardenState({gardenKey:GARDEN_KEY,skinPacks,get garden(){return garden}});
     garden=gardenState.loadGarden();
     let secretCodeBuffer = "";
+    let gardenKeeperToolsUnlocked = false;
     const skinFaceLoader = createSkinFaceLoader(skinPacks, {
       onReady: () => {
         if (state) render();
@@ -76,8 +80,11 @@ import { createPetInteraction } from "./pet-interaction";
       query:$,
       get petImage(){return petImage}, set petImage(value){petImage=value},
       get petImageReady(){return petImageReady}, set petImageReady(value){petImageReady=value},
+      get sadPetImage(){return sadPetImage}, set sadPetImage(value){sadPetImage=value},
+      get sadPetImageReady(){return sadPetImageReady}, set sadPetImageReady(value){sadPetImageReady=value},
       get lastPetState(){return lastPetState}, set lastPetState(value){lastPetState=value},
       get lastPetFrame(){return lastPetFrame}, set lastPetFrame(value){lastPetFrame=value},
+      get lastLossPetFrame(){return lastLossPetFrame}, set lastLossPetFrame(value){lastLossPetFrame=value},
       get petTimer(){return petTimer}, set petTimer(value){petTimer=value},
       petRows,
       reduceMotion,
@@ -97,7 +104,7 @@ import { createPetInteraction } from "./pet-interaction";
     const { loadPetSheet } = createPetSheetLoader(appContext);
     const petAnimation = createPetAnimation(appContext);
     Object.assign(appContext,petAnimation);
-    const { startPetIdle, animatePet } = petAnimation;
+    const { startPetIdle, animatePet, showSadPet } = petAnimation;
     const { showModal, closeModal, toast, wait, flashCharms } = createUiFeedback(appContext);
     const gameServices = createGameServices(appContext);
     Object.assign(appContext,gameServices);
@@ -151,7 +158,9 @@ import { createPetInteraction } from "./pet-interaction";
       if(event.ctrlKey||event.metaKey||event.altKey||event.key.length!==1)return;
       secretCodeBuffer=(secretCodeBuffer+event.key.toLowerCase()).slice(-8);
       if(secretCodeBuffer!=="ladyluma")return;
-      secretCodeBuffer="";unlockAllSkinPacks();
+      secretCodeBuffer="";gardenKeeperToolsUnlocked=true;
+      if(document.querySelector("#modal")?.dataset.view==="settings")showSettings();
+      toast("A Garden Keeper key has appeared in Settings.");
     }
     function showSkinMenu(){
       const option=(id,name,unlocked,content,details="")=>`<article class="skin-card ${garden.selected===id?"selected":""} ${unlocked?"":"locked"}">
@@ -258,8 +267,10 @@ import { createPetInteraction } from "./pet-interaction";
       const best=JSON.parse(localStorage.getItem(META_KEY)||"{}");
       best.bestLevel=Math.max(best.bestLevel||0,state.level);best.runs=(best.runs||0)+1;localStorage.setItem(META_KEY,JSON.stringify(best));
       localStorage.removeItem(SAVE_KEY);
-      showModal(`<h2>The gate grows sleepy</h2><p class="lead">You reached round ${state.level} and gathered ${state.totalScore.toLocaleString()} starlight. Lady Luma will remember your courage, even if the garden resets.</p>
-        <button class="primary" id="againBtn">Try another journey</button>`);
+      showModal(`<div class="loss-ending"><canvas class="loss-pet-sprite" width="181" height="260" aria-hidden="true"></canvas><section class="loss-window"><h2>The gate grows sleepy</h2><p class="lead">You reached round ${state.level} and gathered ${state.totalScore.toLocaleString()} starlight. Lady Luma will remember your courage, even if the garden resets.</p>
+        <button class="primary" id="againBtn">Try another journey</button></section></div>`);
+      $("#modal").classList.add("loss-modal");
+      showSadPet();
       $("#againBtn").onclick=()=>{closeModal();newRun()};
     }
     function victory(){
@@ -272,7 +283,7 @@ import { createPetInteraction } from "./pet-interaction";
       $("#againBtn").onclick=()=>{closeModal();newRun()};
     }
     function newRun(){
-      state=defaultState();state.initialDice=[...state.dice];selected.clear();busy=false;
+      state=defaultState();state.initialDice=[...state.dice];selected.clear();busy=false;startPetIdle();
       $("#startScreen").classList.add("hidden");persistSafe();render();speechForHand();animateDice([0,1,2,3,4]);
     }
     function continueRun(){
@@ -293,6 +304,52 @@ import { createPetInteraction } from "./pet-interaction";
       </div><button class="primary" id="closeHelp">Got it</button>`);
       $("#closeHelp").onclick=closeModal;
     }
+    function showSettings(){
+      const soundLabel=audio.enabled?"On":"Off";
+      const gardenKeeperLink=gardenKeeperToolsUnlocked?`<button class="setting-link garden-keeper-link" id="gardenKeeperTools" type="button"><span><b>Garden Keeper tools</b><small>Test this journey's hidden paths</small></span><strong aria-hidden="true">›</strong></button>`:"";
+      showModal(`<div class="settings-menu"><p class="eyebrow">Moon Garden</p><h2>Settings</h2><p class="lead">Settle in before your next hand.</p>
+        <div class="settings-list">
+          <section class="setting-row"><div><h3>Garden sounds</h3><p>Music and little dice chimes.</p></div><button class="setting-toggle ${audio.enabled?"is-on":""}" id="settingsSound" type="button" role="switch" aria-checked="${audio.enabled}"><span aria-hidden="true"></span>${soundLabel}</button></section>
+          <button class="setting-link" id="settingsHelp" type="button"><span><b>How to play</b><small>Rules, dice, and charms</small></span><strong aria-hidden="true">›</strong></button>
+          <button class="setting-link" id="settingsGarden" type="button"><span><b>Dice garden</b><small>Choose cosmetic dice skins</small></span><strong aria-hidden="true">›</strong></button>
+          <button class="setting-link" id="settingsHands" type="button"><span><b>Hand levels</b><small>Review your upgrades</small></span><strong aria-hidden="true">›</strong></button>
+          ${gardenKeeperLink}
+        </div><button class="primary" id="closeSettings">Back to the table</button></div>`);
+      $("#modal").dataset.view="settings";
+      $("#settingsSound").onclick=()=>{const enabled=audio.toggle();updateSound();if(enabled)clickSound(660,.05);showSettings()};
+      $("#settingsHelp").onclick=showHelp;$("#settingsGarden").onclick=showSkinMenu;$("#settingsHands").onclick=showHandLevels;
+      const gardenKeeperButton=$("#gardenKeeperTools");if(gardenKeeperButton)gardenKeeperButton.onclick=showGardenKeeperTools;
+      $("#closeSettings").onclick=closeModal;
+    }
+    function resetTestRound(){
+      busy=false;selected.clear();state.roundScore=0;state.handsLeft=3;state.rerollsLeft=3;state.dice=rollFive();state.initialDice=[...state.dice];state.rerollsUsed=0;state.phase="play";
+      persistSafe();closeModal();render();speechForHand();animateDice([0,1,2,3,4]);toast("This round has been reset.");
+    }
+    function forceRoundWin(){
+      if(!state)return;
+      busy=false;selected.clear();const remaining=Math.max(0,state.target-state.roundScore);state.roundScore+=remaining;state.totalScore+=remaining;render();roundWon();
+    }
+    function jumpToFinalRound(){
+      if(!state)return;
+      busy=false;selected.clear();state.level=25;state.target=targetFor(25);state.roundScore=0;state.handsLeft=3;state.rerollsLeft=3;state.dice=rollFive();state.initialDice=[...state.dice];state.rerollsUsed=0;state.phase="play";
+      persistSafe();closeModal();render();speechForHand();animateDice([0,1,2,3,4]);toast("The final round is ready.");
+    }
+    function showGardenKeeperTools(){
+      if(!gardenKeeperToolsUnlocked)return;
+      showModal(`<div class="garden-keeper-menu"><p class="eyebrow">Secret path</p><h2>Garden Keeper tools</h2><p class="lead">Shortcuts for testing the Moon Garden's full journey.</p>
+        <div class="keeper-grid">
+          <button class="keeper-action" id="keeperWin" type="button"><b>Clear this round</b><small>Choose a charm now</small></button>
+          <button class="keeper-action" id="keeperFinal" type="button"><b>Jump to round 25</b><small>Prepare the final gate</small></button>
+          <button class="keeper-action" id="keeperSixes" type="button"><b>Roll five sixes</b><small>Test a high-score hand</small></button>
+          <button class="keeper-action" id="keeperResetRound" type="button"><b>Reset this round</b><small>Restore hands and rerolls</small></button>
+          <button class="keeper-action" id="keeperGarden" type="button"><b>Open every dice garden</b><small>Unlock all cosmetic packs</small></button>
+          <button class="keeper-action keeper-danger" id="keeperLose" type="button"><b>Lose this run</b><small>Show the loss ending now</small></button>
+        </div><button class="mini-btn" id="closeGardenKeeper" type="button">Back to settings</button></div>`);
+      $("#keeperWin").onclick=forceRoundWin;$("#keeperFinal").onclick=jumpToFinalRound;
+      $("#keeperSixes").onclick=()=>{state.dice=[6,6,6,6,6];state.initialDice=[...state.dice];state.rerollsUsed=0;selected.clear();busy=false;persistSafe();closeModal();render();speechForHand();toast("Five sixes are on the table.")};
+      $("#keeperResetRound").onclick=resetTestRound;$("#keeperGarden").onclick=unlockAllSkinPacks;
+      $("#keeperLose").onclick=()=>{busy=false;selected.clear();gameOver()};$("#closeGardenKeeper").onclick=showSettings;
+    }
     function showHandLevels(){
       showModal(`<h2>Your hand garden</h2><p class="lead">Upgraded hands grant more petals and sparkle.</p><div class="upgrade-list">
         ${handsData.map(h=>`<div class="upgrade" style="cursor:default"><em>Lv ${state.handLevels[h.id]}</em><strong>${h.name}</strong><span>${h.desc}</span></div>`).join("")}</div><button class="primary" id="closeHands">Close</button>`);
@@ -308,10 +365,9 @@ import { createPetInteraction } from "./pet-interaction";
       $("#brandMark").innerHTML=icons.flower;
       $("#guardian").innerHTML=`<button class="pet-button" type="button" aria-label="Pet Lady Luma" title="Pet Lady Luma"><canvas class="pet-sprite pet-canvas" width="314" height="418"></canvas></button>`;
       $("#startGuardian").innerHTML=`<canvas class="pet-sprite pet-canvas" width="314" height="418" aria-hidden="true"></canvas>`;
-      $("#helpBtn").innerHTML=icons.help;$("#soundBtn").innerHTML=icons.sound;$("#sideToggle").innerHTML=icons.bag;
+      $("#sideToggle").innerHTML=icons.bag;
       $("#newRunBtn").onclick=newRun;$("#continueBtn").onclick=continueRun;$("#rerollBtn").onclick=reroll;$("#playBtn").onclick=playHand;
-      $("#helpBtn").onclick=showHelp;$("#handsBtn").onclick=showHandLevels;$("#skinsBtn").onclick=showSkinMenu;$("#restartBtn").onclick=confirmRestart;
-      $("#soundBtn").onclick=()=>{const enabled=audio.toggle();updateSound();if(enabled)clickSound(660,.05)};
+      $("#settingsBtn").onclick=showSettings;$("#handsBtn").onclick=showHandLevels;$("#skinsBtn").onclick=showSkinMenu;$("#restartBtn").onclick=confirmRestart;
       $("#guardian .pet-button").onclick=petTap;
       $("#sideToggle").onclick=()=>$("#sidePanel").classList.toggle("open");
       $("#overlay").onclick=e=>{if(e.target===$("#overlay")&&state?.phase==="play")closeModal()};

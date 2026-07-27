@@ -1,6 +1,7 @@
 // @ts-nocheck
 
 export function createPetAnimation(context) {
+  let lossPetTimer = null;
   function startPetIdle(){
     clearInterval(context.petTimer);clearTimeout(context.petTimer);
     if(context.reduceMotion){context.setPetFrame("idle",0);return}
@@ -18,5 +19,16 @@ export function createPetAnimation(context) {
       context.setPetFrame(petState,step%4);
     },speed);
   }
-  return { startPetIdle, animatePet };
+  function showSadPet(){
+    clearInterval(lossPetTimer);
+    let frame=0;
+    context.setLossPetFrame(frame);
+    if(context.reduceMotion)return;
+    lossPetTimer=setInterval(()=>{
+      frame=(frame+1)%6;
+      context.setLossPetFrame(frame);
+    },260);
+  }
+  function stopSadPet(){clearInterval(lossPetTimer);lossPetTimer=null}
+  return { startPetIdle, animatePet, showSadPet, stopSadPet };
 }

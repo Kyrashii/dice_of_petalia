@@ -56,8 +56,9 @@ class FakeElement {
 
 function createBrowser() {
   const elements = new Map<string, FakeElement>();
+  let keydownListener: ((event: { key: string; ctrlKey?: boolean; metaKey?: boolean; altKey?: boolean }) => void) | undefined;
   const ids = [
-    "brandMark", "guardian", "startGuardian", "helpBtn", "soundBtn", "sideToggle",
+    "brandMark", "guardian", "startGuardian", "settingsBtn", "sideToggle",
     "newRunBtn", "continueBtn", "rerollBtn", "playBtn", "handsBtn", "skinsBtn",
     "restartBtn", "overlay", "modal", "toast", "diceRow", "levelText", "roundScore",
     "targetScore", "progressFill", "petals", "mult", "preview", "handName", "handDetail",
@@ -80,7 +81,7 @@ function createBrowser() {
       return null;
     },
     querySelectorAll: () => [] as FakeElement[],
-    addEventListener: vi.fn()
+    addEventListener: vi.fn((event: string, listener) => { if (event === "keydown") keydownListener = listener; })
   };
   const localStorage = {
     getItem: (key: string) => storage.get(key) ?? null,
@@ -88,7 +89,10 @@ function createBrowser() {
     removeItem: (key: string) => { storage.delete(key); }
   };
 
-  return { document, localStorage, elements };
+  return {
+    document, localStorage, elements,
+    typeSecret(secret: string) { [...secret].forEach(key => keydownListener?.({ key })); }
+  };
 }
 
 describe("main orchestration", () => {
@@ -117,6 +121,42 @@ describe("main orchestration", () => {
 
     expect(() => browser.elements.get("#newRunBtn")?.onclick?.()).not.toThrow();
     expect(browser.elements.get("#diceRow")?.innerHTML).toContain('class="pip p');
+  });
+
+  it("opens game controls from the settings button", async () => {
+    await import("../src/main");
+
+    browser.elements.get("#settingsBtn")?.onclick?.();
+
+    expect(browser.elements.get("#modal")?.innerHTML).toContain("Garden sounds");
+    expect(() => browser.elements.get("#settingsSound")?.onclick?.()).not.toThrow();
+  });
+
+  it("reveals Garden Keeper tools only after the secret code", async () => {
+    await import("../src/main");
+
+    browser.elements.get("#settingsBtn")?.onclick?.();
+    expect(browser.elements.get("#modal")?.innerHTML).not.toContain("Garden Keeper tools");
+
+    browser.typeSecret("ladyluma");
+    browser.elements.get("#settingsBtn")?.onclick?.();
+
+    expect(browser.elements.get("#modal")?.innerHTML).toContain("Garden Keeper tools");
+    expect(() => browser.elements.get("#gardenKeeperTools")?.onclick?.()).not.toThrow();
+  });
+
+  it("can trigger the loss ending from Garden Keeper tools", async () => {
+    await import("../src/main");
+    browser.elements.get("#newRunBtn")?.onclick?.();
+    browser.typeSecret("ladyluma");
+    browser.elements.get("#settingsBtn")?.onclick?.();
+    browser.elements.get("#gardenKeeperTools")?.onclick?.();
+
+    browser.elements.get("#keeperLose")?.onclick?.();
+
+    expect(browser.elements.get("#modal")?.innerHTML).toContain("loss-pet-sprite");
+    expect(browser.elements.get("#modal")?.innerHTML).toContain("loss-window");
+    expect(browser.elements.get("#modal")?.innerHTML).toContain("The gate grows sleepy");
   });
 
   it("renders an unlocked skin and refreshes it when faces finish loading", async () => {

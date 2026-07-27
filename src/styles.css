@@ -161,11 +161,18 @@
     .brand{gap:10px}.brand-mark{width:46px;height:46px}
     h1{font-size:clamp(25px,4vw,37px);line-height:.88;color:#674b82}
     h1 small{font-size:9px;letter-spacing:2.2px;margin-top:9px;color:#b95483}
+    .header-actions{display:flex;align-items:center;gap:8px}
     .icon-btn{
       width:40px;height:40px;border:2px solid #d8cae4;background:#fffafd;border-radius:50%;
       box-shadow:3px 3px 0 #d8cae4
     }
     .icon-btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 #d8cae4}
+    .settings-btn{
+      border:2px solid #765b93;border-radius:10px;background:#fffafd;color:#49385f;padding:9px 13px;
+      font-family:"Courier New",ui-monospace,monospace;font-size:11px;font-weight:900;cursor:pointer;
+      box-shadow:3px 3px 0 #d8cae4;transition:transform .18s,box-shadow .18s
+    }
+    .settings-btn:hover{transform:translate(-1px,-1px);box-shadow:4px 4px 0 #d8cae4}
     .guardian-zone{
       grid-template-columns:228px minmax(0,1fr);gap:16px;margin:4px auto 2px;min-height:274px;
       width:min(100%,740px);align-items:center
@@ -263,6 +270,27 @@
     .choice:hover{transform:translate(-2px,-3px);border-color:#c85f91;box-shadow:5px 7px 0 #e1d6ea}
     .upgrade,.tip{border:2px solid #dfd2e8;border-radius:10px;box-shadow:2px 3px 0 #eadff1}
     .primary{border:2px solid #765b93;border-radius:10px;background:#b9a7df;color:#49385f;box-shadow:3px 4px 0 #765b93}
+    .settings-menu .eyebrow{text-align:center;margin:0 0 4px;color:#b95483}
+    .settings-menu .lead{margin-bottom:16px}
+    .settings-list{display:grid;gap:9px}
+    .setting-row,.setting-link{border:2px solid #dfd2e8;border-radius:10px;background:#fff;padding:12px 13px;box-shadow:2px 3px 0 #eadff1}
+    .setting-row{display:flex;align-items:center;justify-content:space-between;gap:14px}
+    .setting-row h3,.setting-link b{font-size:14px;color:#664b80}.setting-row h3{margin:0}.setting-row p,.setting-link small{display:block;margin:3px 0 0;font-size:11px;color:#786b89;font-weight:700}
+    .setting-toggle{display:flex;align-items:center;gap:6px;border:2px solid #c9badb;border-radius:99px;background:#f3edf8;padding:5px 9px 5px 6px;color:#786b89;font-size:11px;font-weight:900;cursor:pointer}
+    .setting-toggle span{width:15px;height:15px;border-radius:50%;background:#b5a7c5;transition:transform .18s,background .18s}
+    .setting-toggle.is-on{border-color:#6f9c8c;background:#dcefe6;color:#356d61}.setting-toggle.is-on span{background:#4aaf91;transform:translateX(2px)}
+    .setting-link{display:flex;align-items:center;justify-content:space-between;text-align:left;cursor:pointer;transition:transform .18s,border-color .18s}.setting-link:hover{transform:translate(-1px,-1px);border-color:#b9a7df}
+    .setting-link strong{font-size:24px;line-height:.6;color:#b95483}
+    .modal.loss-modal{width:min(100%,520px);max-height:92dvh;padding:0;overflow:visible;background:transparent;border:0;box-shadow:none}
+    .loss-ending{display:grid;justify-items:center;text-align:center}.loss-pet-sprite{display:block;width:162px;height:233px;margin:0 0 -10px;filter:drop-shadow(0 5px 4px rgba(73,56,95,.16));position:relative;z-index:1}
+    .loss-window{width:100%;padding:24px;background:#fffafd;border:3px solid #eee5f6;border-radius:22px;box-shadow:10px 12px 0 rgba(73,56,95,.24)}
+    .garden-keeper-link{border-style:dashed;background:#faf5e8}.garden-keeper-link b{color:#8b6a2f}.garden-keeper-link small{color:#8b7960}
+    .garden-keeper-menu .eyebrow{text-align:center;margin:0 0 4px;color:#8b6a2f}.garden-keeper-menu .lead{margin-bottom:16px}
+    .keeper-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+    .keeper-action{border:2px solid #dfd2e8;border-radius:10px;background:#fff;padding:12px;text-align:left;box-shadow:2px 3px 0 #eadff1;cursor:pointer;transition:transform .18s,border-color .18s}
+    .keeper-action:hover{transform:translate(-1px,-1px);border-color:#b9a7df}.keeper-action b{display:block;font-size:13px;color:#664b80}.keeper-action small{display:block;margin-top:4px;font-size:10px;line-height:1.3;color:#786b89;font-weight:700}
+    .keeper-danger{background:#fff5f7;border-color:#e9bac9}.keeper-danger b{color:#a64d77}.garden-keeper-menu>.mini-btn{display:block;margin:16px auto 0}
+    @media(max-width:420px){.keeper-grid{grid-template-columns:1fr}.loss-pet-sprite{width:136px;height:196px}.loss-window{padding:19px}}
     .start-screen{
       background-color:#e7daf3;
       background-image:radial-gradient(circle at 14px 14px,rgba(255,255,255,.6) 0 2px,transparent 2.5px);
