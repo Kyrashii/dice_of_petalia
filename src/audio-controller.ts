@@ -27,6 +27,9 @@ export function createAudioController(initiallyEnabled) {
     click: (frequency = 440, volume = .03) => tone(frequency, .08, "sine", volume),
     roll: () => [0, 1, 2, 3].forEach(index => tone(180 + index * 55, .08, "triangle", .025, index * .06)),
     score: multiplier => { tone(520, .15, "sine", .05); tone(660, .18, "sine", .04, .08); if (multiplier > 5) tone(880, .22, "sine", .04, .16); },
+    introHop: () => tone(360, .11, "sine", .035),
+    introSparkle: () => { tone(740, .12, "sine", .032); tone(1047, .16, "sine", .022, .055); },
+    introConfirm: () => { tone(523, .18, "sine", .045); tone(784, .25, "sine", .032, .075); },
     win: () => [523, 659, 784, 1047].forEach((frequency, index) => tone(frequency, .3, "sine", .05, index * .1)),
     fail: () => [420, 350, 280].forEach((frequency, index) => tone(frequency, .25, "triangle", .04, index * .14))
   };

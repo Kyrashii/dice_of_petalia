@@ -24,6 +24,7 @@ import { createGardenProgress } from "./garden-progress";
 import { createRunState } from "./run-state";
 import { createSkinEffects } from "./skin-effects";
 import { createPetInteraction } from "./pet-interaction";
+import { createNewRunIntro } from "./new-run-intro";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -45,6 +46,7 @@ import { createPetInteraction } from "./pet-interaction";
     const petRows = {idle:0,happy:1,dice:2};
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const effects = createVisualEffects({query:$,colors:burstColors,reduceMotion});
+    const newRunIntro = createNewRunIntro({query:$,audio,reduceMotion});
 
     let garden;
     const gardenState = createGardenState({gardenKey:GARDEN_KEY,skinPacks,get garden(){return garden}});
@@ -286,12 +288,20 @@ import { createPetInteraction } from "./pet-interaction";
         <div class="ending-flower" style="text-align:center">${icons.flower}</div><button class="primary" id="againBtn">Begin a fresh journey</button>`);
       $("#againBtn").onclick=()=>{closeModal();newRun()};
     }
-    function newRun(){
+    function beginNewRun(){
       state=defaultState();state.initialDice=[...state.dice];selected.clear();busy=false;startPetIdle();
       $("#startScreen").classList.add("hidden");persistSafe();render();speechForHand();animateDice([0,1,2,3,4]);
     }
+    function newRun(){
+      if(busy)return;
+      busy=true;
+      const startButton=$("#newRunBtn");
+      if(startButton)startButton.disabled=true;
+      // The intro is deliberately opt-in: Continue and restoration call beginNewRun/load directly.
+      if(!newRunIntro.playNewRunIntro(beginNewRun))beginNewRun();
+    }
     function continueRun(){
-      if(!load()){newRun();return}
+      if(!load()){beginNewRun();return}
       $("#startScreen").classList.add("hidden");selected.clear();busy=false;render();
       if(state.phase==="chooseCharm"){pendingChoices=makeCharmChoices();showCharmChoices()}
       else if(state.phase==="upgradeHand")showHandUpgrade();
