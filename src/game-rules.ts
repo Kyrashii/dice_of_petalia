@@ -27,6 +27,11 @@ export const handsData: readonly Hand[] = [
   { id: "five", name: "Five of a Kind", base: 70, mult: 13, desc: "All five dice match" }
 ];
 
+/** Extra petals a hand gains for each level above 1. */
+export function levelPetals(hand: Hand): number {
+  return 4 + Math.ceil(hand.base * 0.22);
+}
+
 export function targetFor(level: number): number {
   return Math.round((72 + level * 28 + Math.pow(level, 1.72) * 7) / 10) * 10;
 }

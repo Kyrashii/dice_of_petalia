@@ -1,6 +1,6 @@
 // @ts-nocheck
 import "./styles.css";
-import { evaluate, handsData, rollFive, targetFor } from "./game-rules";
+import { evaluate, handsData, levelPetals, rollFive, targetFor } from "./game-rules";
 import { burstColors, charmFamilies, skinPacks, variants } from "./game-content";
 import { createSkinFaceLoader } from "./skin-faces";
 import { createAudioController } from "./audio-controller";
@@ -25,6 +25,8 @@ import { createRunState } from "./run-state";
 import { createSkinEffects } from "./skin-effects";
 import { createPetInteraction } from "./pet-interaction";
 import { createNewRunIntro } from "./new-run-intro";
+import { storage } from "./storage";
+import { emptyBonus } from "./run-state";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -34,7 +36,7 @@ import { createNewRunIntro } from "./new-run-intro";
     const SAVE_KEY = "dice-of-petalia-save-v1";
     const META_KEY = "dice-of-petalia-meta-v1";
     const GARDEN_KEY = "dice-of-petalia-luma-garden-v1";
-    const audio = createAudioController(JSON.parse(localStorage.getItem("petalia-sound") ?? "true"));
+    const audio = createAudioController(storage.getJSON("petalia-sound", true) !== false);
     let petTimer = null;
     let petImage = null;
     let petImageReady = false;
@@ -74,7 +76,6 @@ import { createNewRunIntro } from "./new-run-intro";
     let state;
     let selected = new Set();
     let busy = false;
-    let pendingChoices = [];
     const appContext = {
       get state(){return state}, set state(value){state=value},
       get selected(){return selected},
@@ -112,7 +113,7 @@ import { createNewRunIntro } from "./new-run-intro";
     Object.assign(appContext,gameServices);
     const { burst, popScore, lumaHearts, lumaStars, clickSound, rollSound, scoreSound, winSound, failSound, updateSound } = gameServices;
     appContext.updateContinue=updateContinue;
-    const { load, persistSafe } = createRunSave(appContext);
+    const { load, persistSafe, clearSave } = createRunSave(appContext);
     Object.assign(appContext,gardenState);
     const skinPresentation = createSkinPresentation(appContext);
     Object.assign(appContext,skinPresentation);
@@ -120,7 +121,7 @@ import { createNewRunIntro } from "./new-run-intro";
     const diceSelection = createDiceSelection(appContext);
     const diceRenderer = createDiceRenderer(appContext);
     Object.assign(appContext,diceSelection,diceRenderer);
-    const { toggleDie } = diceSelection;
+    const { toggleDie, clearSelection } = diceSelection;
     const { renderDice } = diceRenderer;
     const charmRenderer = createCharmRenderer(appContext);
     Object.assign(appContext,charmRenderer);
@@ -130,7 +131,7 @@ import { createNewRunIntro } from "./new-run-intro";
     const { defaultState, gameContext: context, triggered, previewStats } = runState;
     const gameRenderer = createGameRenderer(appContext);
     Object.assign(appContext,gameRenderer);
-    const { render } = gameRenderer;
+    const { render, renderStatus } = gameRenderer;
     appContext.showSkinMenu=showSkinMenu;
     const { recordGardenEvent, grantMoonDropForRun } = createGardenProgress(appContext);
     const { emitSkinEffect } = createSkinEffects(appContext);
@@ -141,13 +142,13 @@ import { createNewRunIntro } from "./new-run-intro";
     function selectSkin(id){
       const pack=skinPacks.find(item=>item.id===id);
       if(pack&&!isUnlocked(pack)){toast(`${pack.name} needs ${Math.max(0,5-completedTasks(pack))} more garden task${completedTasks(pack)===4?"":"s"}.`);return}
-      garden.selected=id;saveGarden();render();showSkinMenu();clickSound(620,.06);
+      garden.selected=id;saveGarden();if(state)render();showSkinMenu();clickSound(620,.06);
     }
     function skipGardenTask(packId,taskId){
       const pack=skinPacks.find(item=>item.id===packId),task=pack?.tasks.find(item=>item.id===taskId);
       if(!pack||!task||garden.moonDrops<8||garden.packs[packId].skipped||taskDone(pack,task))return;
       garden.moonDrops-=8;garden.packs[packId].skipped=true;garden.packs[packId].skippedTask=taskId;garden.packs[packId].progress[taskId]=task.target;saveGarden();
-      toast(`${task.label} was tended with Moon Drops.`);showSkinMenu();render();
+      toast(`${task.label} was tended with Moon Drops.`);showSkinMenu();if(state)render();
     }
     function unlockAllSkinPacks(){
       skinPacks.forEach(pack=>pack.tasks.forEach(task=>{garden.packs[pack.id].progress[task.id]=task.target}));
@@ -169,6 +170,7 @@ import { createNewRunIntro } from "./new-run-intro";
       $("#mobilePageClose").onclick=onClose;
     }
     function showSkinMenu(){
+      prepareSkinSheets(true);
       const option=(id,name,unlocked,content,details="")=>`<article class="skin-card ${garden.selected===id?"selected":""} ${unlocked?"":"locked"}">
         <div class="skin-preview">${content}</div><div class="skin-card-copy"><div><h3>${name}</h3><p>${details}</p></div><button class="skin-select" data-skin="${id}" ${unlocked?"":"disabled"}>${garden.selected===id?"Selected":unlocked?"Use skin":"Locked"}</button></div></article>`;
       const defaultCard=option("default","Classic Petalia",true,`<div class="preview-dice">${[1,3,5].map(value=>skinFace("default",value,true)).join("")}</div>`,"Always available");
@@ -188,48 +190,64 @@ import { createNewRunIntro } from "./new-run-intro";
       $("#closeSkins").onclick=closeModal;
     }
 
+    const loadMeta=()=>storage.getJSON(META_KEY,{})||{};
+    const saveMeta=meta=>storage.setJSON(META_KEY,meta);
+    function canAct(){return !!state&&!busy&&state.phase==="play"&&!$("#overlay").classList.contains("show")}
+    // Shows score, progress and counters straight away, before the dice animation finishes.
+    function renderCommittedScore(){
+      $("#roundScore").textContent=state.roundScore.toLocaleString();
+      $("#progressFill").style.width=`${Math.min(100,state.roundScore/state.target*100)}%`;
+      $("#hands").textContent=state.handsLeft;$("#rerolls").textContent=state.rerollsLeft;
+      $("#rerollBtn").disabled=true;$("#playBtn").disabled=true;$("#playBtn").classList.remove("clears");
+    }
+
+    // Each action commits its outcome (state + save) first, then plays the animation.
+    // The counters respond instantly and closing the page mid-animation never loses or repeats a move.
     async function reroll(){
-      if(busy||state.rerollsLeft<1||!selected.size)return;
+      if(!canAct()||state.rerollsLeft<1||!selected.size)return;
       busy=true;rollSound();animatePet("dice",1);
-      const idx=[...selected],oldDice=[...state.dice],oldHand=evaluate(oldDice),changed=state.dice.map((_,i)=>idx.includes(i));
-      animateDice(idx);
-      await wait(360);
+      const idx=[...selected],oldDice=[...state.dice],oldHand=evaluate(oldDice),changed=state.dice.map((_,i)=>selected.has(i));
       idx.forEach(i=>state.dice[i]=1+Math.floor(Math.random()*6));
       state.rerollsLeft--;state.rerollsUsed++;
-      const ctx=context("reroll",{oldDice,newDice:[...state.dice],changed,oldHand,newHand:evaluate(state.dice)});
-      const hits=triggered(ctx);
+      const hits=triggered(context("reroll",{oldDice,newDice:[...state.dice],changed,oldHand,newHand:evaluate(state.dice)}));
       applyRerollCharmEffects(hits);
+      persistSafe();renderCommittedScore();animateDice(idx);
       recordGardenEvent({type:"reroll",changed:idx.length,sixes:state.dice.filter((n,i)=>changed[i]&&n===6).length,ones:state.dice.filter((n,i)=>changed[i]&&n===1).length});
+      await wait(360);
       emitSkinEffect("roll");
       selected.clear();busy=false;
-      speechForHand();persistSafe();render();
+      speechForHand();render();
       flashCharms(hits);
     }
     async function playHand(){
-      if(busy)return;
+      if(!canAct()||state.handsLeft<1)return;
       busy=true;selected.clear();
-      const p=previewStats(), hits=p.triggers;
+      const p=previewStats(),hits=p.triggers,playedDice=[...state.dice];
+      state.roundScore+=p.total;state.totalScore+=p.total;state.handsLeft--;
+      state.rerollsLeft+=p.rerollRefund;state.bonus=emptyBonus();state.refunded=[];
+      recordGardenEvent({type:"play",dice:playedDice,hand:p.hand.id,score:p.total,rerollsUsed:state.rerollsUsed});
+      const won=state.roundScore>=state.target,lost=!won&&state.handsLeft<=0;
+      if(won){
+        state.phase="chooseCharm";state.charmChoices=makeCharmChoices();
+        recordGardenEvent({type:"round-win",round:state.level,rerollsLeft:state.rerollsLeft});
+        persistSafe();
+      }else if(lost)finishRun(false);
+      else{state.dice=rollFive();state.initialDice=[...state.dice];state.rerollsUsed=0;persistSafe()}
+
       animatePet(p.mult>=4?"happy":"dice",1);
       if(p.hand.mult>=4)lumaStars(p.hand.mult);
-      $("#petals").textContent=p.petals;$("#mult").textContent=p.mult;$("#preview").textContent=p.total.toLocaleString();
       flashCharms(hits);scoreSound(p.mult);
       popScore(p.total);burst(window.innerWidth/2,window.innerHeight*.58,16);
-      recordGardenEvent({type:"play",dice:[...state.dice],hand:p.hand.id,score:p.total,rerollsUsed:state.rerollsUsed});
-      state.roundScore+=p.total;state.totalScore+=p.total;state.handsLeft--;
+      renderCommittedScore();
+      if(p.rerollRefund)toast(`Golden charm${p.rerollRefund>1?"s":""} returned ${p.rerollRefund} reroll${p.rerollRefund>1?"s":""}.`);
       await wait(700);
-      if(state.roundScore>=state.target){
-        render();await wait(400);roundWon();return;
-      }
-      if(state.handsLeft<=0){render();await wait(450);gameOver();return}
-      state.dice=rollFive();state.initialDice=[...state.dice];state.rerollsUsed=0;
-      speechForHand();busy=false;persistSafe();render();animateDice([0,1,2,3,4]);
+      if(won){render();await wait(400);celebrateRoundWin();return}
+      if(lost){await wait(450);showGameOver();return}
+      busy=false;speechForHand();render();animateDice([0,1,2,3,4]);
     }
-    function roundWon(){
+    function celebrateRoundWin(){
       winSound();animatePet("happy",2);burst(window.innerWidth/2,window.innerHeight/2,40);
-      recordGardenEvent({type:"round-win",round:state.level,rerollsLeft:state.rerollsLeft});
       $("#speech").textContent="That was lovely! Choose a charm for the path ahead.";
-      pendingChoices=makeCharmChoices();
-      state.phase="chooseCharm";persistSafe();
       showCharmChoices();
     }
     function makeCharmChoices(){
@@ -239,58 +257,78 @@ import { createNewRunIntro } from "./new-run-intro";
         const j=Math.floor(Math.random()*(i+1));
         [pool[i],pool[j]]=[pool[j],pool[i]];
       }
-      return pool.slice(0,3).map(({fi,vi})=>{
+      return pool.slice(0,3);
+    }
+    function charmChoices(){
+      if(!state.charmChoices?.length)state.charmChoices=makeCharmChoices();
+      return state.charmChoices.map(({fi,vi})=>{
         const existing=state.charms.find(c=>c.familyIndex===fi&&c.variantIndex===vi);
         return {family:charmFamilies[fi],variant:variants[vi],familyIndex:fi,variantIndex:vi,rank:existing?(existing.rank+1):1,isUpgrade:!!existing};
       });
     }
     function showCharmChoices(){
-      showModal(`<h2>A charm chooses you</h2><p class="lead">Pick one. Matching charms become stronger and charms with the same condition can twinkle together.</p>
-        <div class="choice-grid">${pendingChoices.map((ch,i)=>`<button class="choice" data-pick="${i}">
-          <div class="big-icon">${icons.charm(ch.variant.tone)}</div><div><h3>${ch.variant.label} ${ch.family.name}</h3><p>${ch.family.desc}</p><div class="effect">${effectText(ch)}${ch.isUpgrade?" · upgrades yours":""}</div></div></button>`).join("")}</div>`);
+      const choices=charmChoices();
+      showModal(`<h2>A charm chooses you</h2><p class="lead">Round ${state.level} cleared! Pick one charm. Picking one you own makes it stronger.</p>
+        <div class="choice-grid">${choices.map((ch,i)=>`<button class="choice" type="button" data-pick="${i}">
+          <div class="big-icon">${icons.charm(ch.variant.tone)}</div><div><h3>${ch.variant.label} ${ch.family.name}</h3><p>${ch.family.desc}</p><div class="effect">${effectText(ch)}${ch.isUpgrade?` · upgrades yours to rank ${ch.rank}`:""}</div><span class="choice-when">${ch.family.trigger==="reroll"?"Triggers when you reroll":"Triggers when you play"}</span></div></button>`).join("")}</div>`);
       document.querySelectorAll("[data-pick]").forEach(b=>b.onclick=()=>pickCharm(+b.dataset.pick));
     }
     function pickCharm(i){
-      const ch=pendingChoices[i],existing=state.charms.find(c=>c.familyIndex===ch.familyIndex&&c.variantIndex===ch.variantIndex);
-      if(existing)existing.rank++;else state.charms.push(ch);
-      clickSound(620,.08);state.phase="upgradeHand";persistSafe();showHandUpgrade();
+      if(state?.phase!=="chooseCharm")return;
+      const ch=charmChoices()[i];if(!ch)return;
+      const existing=state.charms.find(c=>c.familyIndex===ch.familyIndex&&c.variantIndex===ch.variantIndex);
+      if(existing)existing.rank++;else state.charms.push({family:ch.family,variant:ch.variant,familyIndex:ch.familyIndex,variantIndex:ch.variantIndex,rank:1});
+      state.charmChoices=[];
+      clickSound(620,.08);state.phase="upgradeHand";persistSafe();renderStatus();showHandUpgrade();
     }
     function showHandUpgrade(){
       const order=[...handsData].sort((a,b)=>(state.handLevels[a.id]||1)-(state.handLevels[b.id]||1));
-      showModal(`<h2>Grow a favorite hand</h2><p class="lead">Every level adds petals and sparkle whenever you play that hand.</p>
-        <div class="upgrade-list">${order.map(h=>`<button class="upgrade" data-up="${h.id}"><em>Lv ${state.handLevels[h.id]}</em><strong>${h.name}</strong><span>${h.desc}</span></button>`).join("")}</div>`);
+      showModal(`<h2>Grow a favorite hand</h2><p class="lead">Each level gives that hand more petals and +1 sparkle, every time you play it.</p>
+        <div class="upgrade-list">${order.map(h=>`<button class="upgrade" type="button" data-up="${h.id}"><em>Lv ${state.handLevels[h.id]} → ${state.handLevels[h.id]+1}</em><strong>${h.name}</strong><span>${h.desc}</span><small class="upgrade-gain">+${levelPetals(h)} petals · +1 sparkle</small></button>`).join("")}</div>`);
       document.querySelectorAll("[data-up]").forEach(b=>b.onclick=()=>upgradeHand(b.dataset.up));
     }
     function upgradeHand(id){
+      if(state?.phase!=="upgradeHand"||!(id in state.handLevels))return;
       state.handLevels[id]++;clickSound(760,.1);closeModal();
       if(state.level>=25){victory();return}
-      state.level++;state.target=targetFor(state.level);state.roundScore=0;state.handsLeft=3;state.rerollsLeft=3;state.dice=rollFive();state.initialDice=[...state.dice];state.rerollsUsed=0;state.phase="play";
-      busy=false;$("#speech").textContent=roundSpeech();persistSafe();render();animateDice([0,1,2,3,4]);
+      state.level++;state.target=targetFor(state.level);state.roundScore=0;state.handsLeft=3;state.rerollsLeft=3;state.dice=rollFive();state.initialDice=[...state.dice];state.rerollsUsed=0;state.bonus=emptyBonus();state.refunded=[];state.phase="play";
+      busy=false;$("#speech").textContent=`${roundSpeech()} Reach ${state.target.toLocaleString()} petals.`;persistSafe();render();animateDice([0,1,2,3,4]);
     }
-    function gameOver(){
-      failSound();startPetIdle();
+    // Records the result and clears the save right away, so a finished run can't be continued.
+    function finishRun(won){
       grantMoonDropForRun();
-      const best=JSON.parse(localStorage.getItem(META_KEY)||"{}");
-      best.bestLevel=Math.max(best.bestLevel||0,state.level);best.runs=(best.runs||0)+1;localStorage.setItem(META_KEY,JSON.stringify(best));
-      localStorage.removeItem(SAVE_KEY);
+      state.phase="over";busy=false;selected.clear();
+      const meta=loadMeta();
+      meta.bestLevel=won?25:Math.max(meta.bestLevel||0,state.level);meta.runs=(meta.runs||0)+1;
+      if(won)meta.wins=(meta.wins||0)+1;
+      meta.bestScore=Math.max(meta.bestScore||0,state.totalScore);
+      saveMeta(meta);clearSave();updateStartStats();
+    }
+    function gameOver(){finishRun(false);showGameOver()}
+    function showGameOver(){
+      failSound();startPetIdle();
       showModal(`<div class="loss-ending"><canvas class="loss-pet-sprite" width="181" height="260" aria-hidden="true"></canvas><section class="loss-window"><h2>The gate grows sleepy</h2><p class="lead">You reached round ${state.level} and gathered ${state.totalScore.toLocaleString()} starlight. Lady Luma will remember your courage, even if the garden resets.</p>
-        <button class="primary" id="againBtn">Try another journey</button></section></div>`);
+        ${runSummary()}<button class="primary" id="againBtn" type="button">Try another journey</button></section></div>`);
       $("#modal").classList.add("loss-modal");
       showSadPet();
       $("#againBtn").onclick=()=>{closeModal();newRun()};
     }
     function victory(){
-      grantMoonDropForRun();
-      const best=JSON.parse(localStorage.getItem(META_KEY)||"{}");
-      best.bestLevel=25;best.wins=(best.wins||0)+1;best.runs=(best.runs||0)+1;localStorage.setItem(META_KEY,JSON.stringify(best));
-      localStorage.removeItem(SAVE_KEY);burst(window.innerWidth/2,window.innerHeight/2,60);winSound();animatePet("happy",3);
+      finishRun(true);
+      burst(window.innerWidth/2,window.innerHeight/2,60);winSound();animatePet("happy",3);
       showModal(`<h2>The starlight gate opens</h2><p class="lead">You completed all 25 rounds with ${state.totalScore.toLocaleString()} starlight. Lady Luma crowns you the Moon Garden's luckiest wanderer.</p>
-        <div class="ending-flower" style="text-align:center">${icons.flower}</div><button class="primary" id="againBtn">Begin a fresh journey</button>`);
+        <div class="ending-flower" style="text-align:center">${icons.flower}</div>${runSummary()}<button class="primary" id="againBtn" type="button">Begin a fresh journey</button>`);
       $("#againBtn").onclick=()=>{closeModal();newRun()};
+    }
+    function runSummary(){
+      const meta=loadMeta();
+      return `<dl class="run-summary"><div><dt>Charms</dt><dd>${state.charms.length}</dd></div><div><dt>Best round</dt><dd>${meta.bestLevel||state.level}</dd></div><div><dt>Journeys</dt><dd>${meta.runs||1}</dd></div></dl>`;
     }
     function beginNewRun(){
       state=defaultState();state.initialDice=[...state.dice];selected.clear();busy=false;startPetIdle();
       $("#startScreen").classList.add("hidden");persistSafe();render();speechForHand();animateDice([0,1,2,3,4]);
+      const meta=loadMeta();
+      if(!meta.tutorialSeen){meta.tutorialSeen=true;saveMeta(meta);showHelp()}
     }
     function newRun(){
       if(busy)return;
@@ -298,24 +336,34 @@ import { createNewRunIntro } from "./new-run-intro";
       const startButton=$("#newRunBtn");
       if(startButton)startButton.disabled=true;
       // The intro is deliberately opt-in: Continue and restoration call beginNewRun/load directly.
-      if(!newRunIntro.playNewRunIntro(beginNewRun))beginNewRun();
+      if(!newRunIntro.playNewRunIntro(()=>{if(startButton)startButton.disabled=false;beginNewRun()})){if(startButton)startButton.disabled=false;beginNewRun()}
     }
     function continueRun(){
       if(!load()){beginNewRun();return}
-      $("#startScreen").classList.add("hidden");selected.clear();busy=false;render();
-      if(state.phase==="chooseCharm"){pendingChoices=makeCharmChoices();showCharmChoices()}
+      $("#startScreen").classList.add("hidden");selected.clear();busy=false;render();startPetIdle();
+      if(state.phase==="chooseCharm")showCharmChoices()
       else if(state.phase==="upgradeHand")showHandUpgrade();
       else speechForHand();
     }
-    function updateContinue(){$("#continueBtn").disabled=!localStorage.getItem(SAVE_KEY)}
+    function updateContinue(){
+      const saved=storage.getJSON(SAVE_KEY,null),button=$("#continueBtn");
+      button.disabled=!saved?.level;
+      button.textContent=saved?.level?`Continue journey · Round ${saved.level}`:"No saved journey yet";
+    }
+    function updateStartStats(){
+      const meta=loadMeta(),el=$("#startStats");
+      if(!meta.runs){el.hidden=true;return}
+      el.hidden=false;
+      el.textContent=`Best round ${meta.bestLevel||1} / 25 · ${meta.runs} journey${meta.runs===1?"":"s"}${meta.wins?` · ${meta.wins} gate${meta.wins===1?"":"s"} opened`:""}`;
+    }
 
     function showHelp(){
-      showDismissibleModal(`<h2>How to play</h2><p class="lead">Build dice-poker hands, stack lucky charms, and clear all 25 rounds.</p><div class="tutorial">
-        <div class="tip"><b>1. Choose dice</b><span>Tap any dice you do not want. The raised pink dice will be rerolled.</span></div>
-        <div class="tip"><b>2. Shape a hand</b><span>You have three rerolls each round. Pairs, straights and matching sets give more sparkle.</span></div>
-        <div class="tip"><b>3. Play three hands</b><span>Each round gives you three scoring hands. Reach the target before they run out.</span></div>
-        <div class="tip"><b>4. Build combos</b><span>After winning, take one charm and upgrade one hand. Charms with compatible conditions stack.</span></div>
-      </div><button class="primary" id="closeHelp">Got it</button>`);
+      showDismissibleModal(`<h2>How to play</h2><p class="lead">Build dice-poker hands, collect lucky charms, and clear all 25 rounds.</p><div class="tutorial">
+        <div class="tip"><b>1. Pick dice to reroll</b><span>Tap the dice you don't want. Raised pink dice are rerolled. You get 3 rerolls per round, shared by all your hands.</span></div>
+        <div class="tip"><b>2. Play a hand</b><span>Your score is <b class="inline">petals × sparkle</b>. Petals are the dice total plus the hand's bonus. Better hands give more sparkle.</span></div>
+        <div class="tip"><b>3. Reach the target</b><span>Each round gives you 3 hands. Reach the round's target score before they run out. A glowing Play button means this hand clears the round.</span></div>
+        <div class="tip"><b>4. Grow stronger</b><span>After each round, pick a charm and level up a hand. Play charms add to the hand you play. Reroll charms save their bonus for your next hand.</span></div>
+      </div><p class="help-keys">On a keyboard: <kbd>1</kbd>–<kbd>5</kbd> pick dice · <kbd>R</kbd> reroll · <kbd>P</kbd> play · <kbd>Esc</kbd> clear</p><button class="primary" id="closeHelp" type="button">Got it</button>`);
       $("#closeHelp").onclick=closeModal;
     }
     function showSettings(){
@@ -336,16 +384,20 @@ import { createNewRunIntro } from "./new-run-intro";
       $("#closeSettings").onclick=closeModal;
     }
     function resetTestRound(){
-      busy=false;selected.clear();state.roundScore=0;state.handsLeft=3;state.rerollsLeft=3;state.dice=rollFive();state.initialDice=[...state.dice];state.rerollsUsed=0;state.phase="play";
+      if(!state||state.phase==="over")return;
+      busy=false;selected.clear();state.roundScore=0;state.handsLeft=3;state.rerollsLeft=3;state.dice=rollFive();state.initialDice=[...state.dice];state.rerollsUsed=0;state.bonus=emptyBonus();state.refunded=[];state.phase="play";
       persistSafe();closeModal();render();speechForHand();animateDice([0,1,2,3,4]);toast("This round has been reset.");
     }
     function forceRoundWin(){
       if(!state)return;
-      busy=false;selected.clear();const remaining=Math.max(0,state.target-state.roundScore);state.roundScore+=remaining;state.totalScore+=remaining;render();roundWon();
+      if(state.phase!=="play")return;
+      busy=false;selected.clear();const remaining=Math.max(0,state.target-state.roundScore);state.roundScore+=remaining;state.totalScore+=remaining;
+      state.phase="chooseCharm";state.charmChoices=makeCharmChoices();recordGardenEvent({type:"round-win",round:state.level,rerollsLeft:state.rerollsLeft});
+      persistSafe();render();celebrateRoundWin();
     }
     function jumpToFinalRound(){
-      if(!state)return;
-      busy=false;selected.clear();state.level=25;state.target=targetFor(25);state.roundScore=0;state.handsLeft=3;state.rerollsLeft=3;state.dice=rollFive();state.initialDice=[...state.dice];state.rerollsUsed=0;state.phase="play";
+      if(!state||state.phase==="over")return;
+      busy=false;selected.clear();state.level=25;state.target=targetFor(25);state.roundScore=0;state.handsLeft=3;state.rerollsLeft=3;state.dice=rollFive();state.initialDice=[...state.dice];state.rerollsUsed=0;state.bonus=emptyBonus();state.refunded=[];state.phase="play";
       persistSafe();closeModal();render();speechForHand();animateDice([0,1,2,3,4]);toast("The final round is ready.");
     }
     function showGardenKeeperTools(){
@@ -360,18 +412,19 @@ import { createNewRunIntro } from "./new-run-intro";
           <button class="keeper-action keeper-danger" id="keeperLose" type="button"><b>Lose this run</b><small>Show the loss ending now</small></button>
         </div><button class="mini-btn" id="closeGardenKeeper" type="button">Back to settings</button></div>`,showSettings);
       $("#keeperWin").onclick=forceRoundWin;$("#keeperFinal").onclick=jumpToFinalRound;
-      $("#keeperSixes").onclick=()=>{state.dice=[6,6,6,6,6];state.initialDice=[...state.dice];state.rerollsUsed=0;selected.clear();busy=false;persistSafe();closeModal();render();speechForHand();toast("Five sixes are on the table.")};
+      $("#keeperSixes").onclick=()=>{if(state?.phase!=="play")return;state.dice=[6,6,6,6,6];state.initialDice=[...state.dice];state.rerollsUsed=0;selected.clear();busy=false;persistSafe();closeModal();render();speechForHand();toast("Five sixes are on the table.")};
       $("#keeperResetRound").onclick=resetTestRound;$("#keeperGarden").onclick=unlockAllSkinPacks;
-      $("#keeperLose").onclick=()=>{busy=false;selected.clear();gameOver()};$("#closeGardenKeeper").onclick=showSettings;
+      $("#keeperLose").onclick=()=>{if(state?.phase!=="play")return;busy=false;selected.clear();gameOver()};$("#closeGardenKeeper").onclick=showSettings;
     }
     function showHandLevels(){
-      showDismissibleModal(`<h2>Your hand garden</h2><p class="lead">Upgraded hands grant more petals and sparkle.</p><div class="upgrade-list">
-        ${handsData.map(h=>`<div class="upgrade" style="cursor:default"><em>Lv ${state.handLevels[h.id]}</em><strong>${h.name}</strong><span>${h.desc}</span></div>`).join("")}</div><button class="primary" id="closeHands">Close</button>`);
+      const current=evaluate(state.dice).id;
+      showDismissibleModal(`<h2>Your hand garden</h2><p class="lead">What each hand scores before dice and charms. Level up hands after each round.</p><div class="upgrade-list">
+        ${handsData.map(h=>{const lv=state.handLevels[h.id]||1;return `<div class="upgrade hand-info ${h.id===current?"current":""}"><em>Lv ${lv}</em><strong>${h.name}</strong><span>${h.desc}</span><small class="upgrade-gain">+${h.base+(lv-1)*levelPetals(h)} petals · ×${h.mult+lv-1} sparkle${h.id===current?" · on the table":""}</small></div>`}).join("")}</div><button class="primary" id="closeHands" type="button">Close</button>`);
       $("#closeHands").onclick=closeModal;
     }
     function confirmRestart(){
-      showDismissibleModal(`<h2>Start over?</h2><p class="lead">This will replace the current journey and its charms with a fresh run.</p>
-      <div style="display:flex;gap:10px;justify-content:center"><button class="mini-btn" id="cancelRestart">Keep playing</button><button class="primary" id="yesRestart" style="margin:0">Start fresh</button></div>`);
+      showDismissibleModal(`<h2>Start over?</h2><p class="lead">Your round ${state.level} journey and its ${state.charms.length} charm${state.charms.length===1?"":"s"} will be replaced by a fresh run.</p>
+      <div class="confirm-actions"><button class="mini-btn" id="cancelRestart" type="button">Keep playing</button><button class="primary" id="yesRestart" type="button">Start fresh</button></div>`);
       $("#cancelRestart").onclick=closeModal;$("#yesRestart").onclick=()=>{closeModal();newRun()};
     }
 
@@ -393,10 +446,30 @@ import { createNewRunIntro } from "./new-run-intro";
       $("#sideToggle").onclick=()=>setSidePanelOpen(!$("#sidePanel").classList.contains("open"));
       $("#closeSidePanel").onclick=()=>setSidePanelOpen(false);
       setSidePanelOpen(false);
-      $("#overlay").onclick=e=>{if(e.target===$("#overlay")&&state?.phase==="play")closeModal()};
-      document.addEventListener("keydown",e=>{checkSecretCode(e);if(e.key==="Escape"&&state?.phase==="play")closeModal();if(e.key>="1"&&e.key<="5"&&!$("#overlay").classList.contains("show"))toggleDie(+e.key-1)});
-      window.addEventListener("beforeunload",()=>{if(state)persistSafe()});
-      updateContinue();updateSound();loadPetSheet();prepareSkinSheets();startPetIdle();
+      // Only menus opened during play can be dismissed; charm picks and endings need a choice.
+      const canDismissModal=()=>state?.phase==="play";
+      $("#overlay").onclick=e=>{if(e.target===$("#overlay")&&canDismissModal())closeModal()};
+      document.addEventListener("keydown",e=>{
+        checkSecretCode(e);
+        const modalOpen=$("#overlay").classList.contains("show");
+        if(e.key==="Escape"){
+          if(modalOpen){if(canDismissModal())closeModal()}
+          else if($("#sidePanel").classList.contains("open"))setSidePanelOpen(false);
+          else clearSelection();
+          return;
+        }
+        if(modalOpen||e.ctrlKey||e.metaKey||e.altKey||!state||!$("#startScreen").classList.contains("hidden"))return;
+        if(e.target?.closest?.("input,textarea,select,[contenteditable]"))return;
+        const key=e.key.toLowerCase();
+        if(key>="1"&&key<="5"&&key.length===1)toggleDie(+key-1);
+        else if(key==="r"){e.preventDefault?.();reroll()}
+        else if(key==="p"){e.preventDefault?.();playHand()}
+      });
+      // pagehide/visibilitychange fire reliably on mobile, where beforeunload often does not.
+      const persistIfPlaying=()=>{if(state)persistSafe()};
+      window.addEventListener("pagehide",persistIfPlaying);
+      document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")persistIfPlaying()});
+      updateStartStats();updateContinue();updateSound();loadPetSheet();prepareSkinSheets();startPetIdle();
     }
     init();
   })();

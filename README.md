@@ -11,7 +11,11 @@ corepack pnpm test:run
 corepack pnpm build
 ```
 
-`src/main.ts` retains the existing game flow, DOM behavior, persistence keys, sound, and inline sprite asset. The reusable dice-hand and scoring rules live in `src/game-rules.ts` and are covered by Vitest.
+`src/main.ts` coordinates the game flow and screens. The dice-hand and scoring rules live in `src/game-rules.ts`, charm scoring in `src/run-state.ts`, and save validation in `src/run-save.ts`; all are covered by Vitest.
+
+Every move commits its result (state and save) before its animation plays, so counters update instantly and closing the tab mid-roll never loses or repeats a move. All `localStorage` access goes through `src/storage.ts` so blocked storage never stops the game.
+
+Keyboard: `1`–`5` pick dice, `R` reroll, `P` play, `Esc` clear the selection or close a menu.
 
 ## Vercel
 

@@ -1,4 +1,3 @@
-  <style>
     :root{
       --ink:#564b70;--muted:#887d9f;--paper:#fffafd;--pink:#f5a9cf;--pink2:#ffe0ef;
       --lav:#c8b6ff;--lav2:#eee8ff;--mint:#a8e6cf;--mint2:#ddf8ef;--sky:#a9d8f5;
@@ -118,8 +117,8 @@
       --ink:#49385f;--muted:#786b89;--paper:#fffafd;--pink:#f3a7c7;--pink2:#fbdbea;
       --lav:#b9a7df;--lav2:#e8def6;--mint:#a9d7c1;--mint2:#dcefe6;--sky:#a8cfe4;
       --cream:#f9dc8f;--rose:#c85f91;--line:#dfd2e8;--shadow:8px 9px 0 #d8cce7;
-      --pet-sheet:url("./assets/lady-luma-sprite-sheet.png");
-      --luma-pedestal:url("./assets/ladyluma_podest_keyed.png");
+      --pet-sheet:url("./assets/lady-luma-sprite-sheet.webp");
+      --luma-pedestal:url("./assets/ladyluma_podest.webp");
     }
     html,body{font-family:"Avenir Next Rounded","Arial Rounded MT Bold","Trebuchet MS","Segoe UI",sans-serif}
     body{
@@ -336,8 +335,8 @@
       --garden-p3:url("./assets/garden-phase-3.webp");
       --garden-p4:url("./assets/garden-phase-4.webp");
       --garden-p5:url("./assets/garden-phase-5.webp");
-      --dice-table:url("./assets/dice_background_keyed.png");
-      --ui-sprites:url("./assets/ui_sprites.png")
+      --dice-table:url("./assets/dice_table.webp");
+      --ui-sprites:url("./assets/ui_sprites.webp")
     }
     body{background:#dcd6ef}
     .garden-world{
@@ -502,3 +501,49 @@
       .new-run-intro,.intro-moon-glow{transition-duration:.12s!important}
       .new-run-intro.finishing #newRunDiceCanvas{animation:none;opacity:0;transition:opacity .12s ease}
     }
+
+/* Play clarity: round hints, ready charms, shortcuts and run stats. */
+.round-hint{margin-top:8px;font-size:12px;font-weight:800;color:#7a6252;min-height:16px}
+.round-hint.clears{color:#2f7a63}
+.round-hint.clears:before{content:"✦ ";color:#c9a43a}
+.play-btn.clears{animation:clearsGlow 1.6s ease-in-out infinite}
+@keyframes clearsGlow{50%{box-shadow:4px 5px 0 rgba(73,56,95,.22),0 0 0 5px rgba(122,199,168,.45)}}
+.btn>span{display:block}
+.charm-when{display:block;margin-top:3px;font:normal 900 8px "Courier New",monospace;letter-spacing:.6px;text-transform:uppercase;color:#a99bb6}
+.charm.ready{background:#fff8dd}
+.charm.ready .charm-icon{border-color:#e3c974;box-shadow:0 0 0 3px rgba(249,220,143,.55)}
+.charm.ready .charm-when{color:#9a6c35}
+.choice-when{display:block;margin-top:6px;font:900 9px "Courier New",monospace;letter-spacing:.5px;text-transform:uppercase;color:#8b7d96}
+.upgrade-gain{display:block;margin-top:4px;font-size:11px;font-weight:900;color:#2f7a63}
+.key-hint{position:relative;z-index:1;margin:8px 0 0;text-align:center;font-size:11px;color:#786b89;font-weight:700}
+.key-hint kbd{display:inline-block;min-width:18px;padding:1px 5px;border:1px solid #d6c8e1;border-bottom-width:2px;border-radius:5px;background:#fff;font:900 10px "Courier New",monospace;color:#49385f}
+.start-stats{margin:14px auto 0!important;font:900 11px "Courier New",monospace!important;letter-spacing:.4px;color:#8b6a2f!important}
+.start-stats[hidden]{display:none}
+.run-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:4px 0 0;padding:0}
+.run-summary div{padding:8px 4px;border:2px solid #eadff1;border-radius:10px;background:#fff;text-align:center}
+.run-summary dt{font:900 9px "Courier New",monospace;letter-spacing:.6px;text-transform:uppercase;color:#8b7d96}
+.run-summary dd{margin:2px 0 0;font:900 20px "Cooper Black","Arial Rounded MT Bold",sans-serif;color:#664b80}
+.choice:focus-visible,.upgrade:focus-visible,.setting-link:focus-visible,.keeper-action:focus-visible,.mini-btn:focus-visible,.primary:focus-visible,.start-btn:focus-visible,.skin-select:focus-visible{outline:4px solid rgba(200,95,145,.4);outline-offset:2px}
+/* Keep the curved dice layout while rolling. */
+@keyframes roll{25%{transform:translateY(calc(var(--curve-y,0px) - 8px)) rotate(calc(var(--curve-r,0deg) - 10deg)) scale(.92)}55%{transform:translateY(calc(var(--curve-y,0px) - 15px)) rotate(calc(var(--curve-r,0deg) + 12deg))}80%{transform:translateY(var(--curve-y,0px)) rotate(calc(var(--curve-r,0deg) - 4deg)) scale(1.04)}}
+/* Desktop: keep Reroll and Play on screen even when the table is taller than the window. */
+@media(min-width:801px){
+  .main-panel{overflow:clip}
+  .actions{position:sticky;z-index:8;bottom:0;margin:0 -22px -22px;padding:12px 25px 18px;background:linear-gradient(180deg,rgba(255,250,253,0),rgba(255,250,253,.96) 30%)}
+  .key-hint{order:2}
+}
+@media(min-width:801px) and (max-height:880px){
+  .guardian-zone{min-height:200px;grid-template-columns:180px minmax(0,1fr)}
+  .guardian{height:196px}.guardian:before{width:190px;height:190px;bottom:-56px}
+  .guardian .pet-canvas{width:150px;height:200px}.pet-button:before{width:160px;height:160px}
+  .moon-table{min-height:190px;margin-top:12px}
+}
+@media(max-width:800px),(hover:none){.key-hint{display:none}}
+@media(prefers-reduced-motion:reduce){.play-btn.clears{animation:none;box-shadow:4px 5px 0 rgba(73,56,95,.22),0 0 0 4px rgba(122,199,168,.5)}}
+.tip b.inline{display:inline;color:#a94d78;margin:0}
+.help-keys{text-align:center;font-size:12px;color:#786b89;font-weight:700;margin:14px 0 0}
+.help-keys kbd{display:inline-block;min-width:18px;padding:1px 5px;border:1px solid #d6c8e1;border-bottom-width:2px;border-radius:5px;background:#fff;font:900 10px "Courier New",monospace;color:#49385f}
+.hand-info{cursor:default}.hand-info:hover{transform:none;border-color:#dfd2e8}
+.hand-info.current{border-color:#e3c974;background:#fffbea}
+.confirm-actions{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap}.confirm-actions .primary{margin:0}
+@media(max-width:800px),(hover:none){.help-keys{display:none}}

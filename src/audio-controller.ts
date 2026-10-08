@@ -1,14 +1,18 @@
 // @ts-nocheck
+import { storage } from "./storage";
 
 export function createAudioController(initiallyEnabled) {
   let enabled = initiallyEnabled;
   let context = null;
 
   function ensureContext() {
-    if (context) return true;
-    const AudioEngine = window.AudioContext || window.webkitAudioContext;
-    if (!AudioEngine) return false;
-    context = new AudioEngine();
+    if (!context) {
+      const AudioEngine = window.AudioContext || window.webkitAudioContext;
+      if (!AudioEngine) return false;
+      try { context = new AudioEngine(); } catch { return false; }
+    }
+    // Mobile browsers start audio suspended until a user gesture resumes it.
+    if (context.state === "suspended") context.resume?.().catch(() => {});
     return true;
   }
 
@@ -23,7 +27,7 @@ export function createAudioController(initiallyEnabled) {
   return {
     get enabled() { return enabled; },
     toggle() { enabled = !enabled; return enabled; },
-    persist() { localStorage.setItem("petalia-sound", JSON.stringify(enabled)); },
+    persist() { storage.setJSON("petalia-sound", enabled); },
     click: (frequency = 440, volume = .03) => tone(frequency, .08, "sine", volume),
     roll: () => [0, 1, 2, 3].forEach(index => tone(180 + index * 55, .08, "triangle", .025, index * .06)),
     score: multiplier => { tone(520, .15, "sine", .05); tone(660, .18, "sine", .04, .08); if (multiplier > 5) tone(880, .22, "sine", .04, .16); },
