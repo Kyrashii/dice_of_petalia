@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#f7d9ee" />
     <title>Dice of Petalia</title>
+    <meta name="description" content="A cozy pastel dice-poker roguelike. Roll, reroll and collect lucky charms to win Lady Luma's 25-round Moon Garden trial." />
   </head>
   <body data-garden-phase="1" class="garden-unlocked-1">
   <div class="garden-world" aria-hidden="true">
@@ -20,9 +21,10 @@
       <h2>Dice of Petalia <span>a pastel dice roguelike</span></h2>
       <p>Lady Luma guards the Moon Garden. Win 25 rounds of dice poker and she will open the starlight gate for you.</p>
       <div class="start-actions">
-        <button class="start-btn new" id="newRunBtn">Begin a new journey</button>
-        <button class="start-btn continue" id="continueBtn">Continue saved journey</button>
+        <button class="start-btn new" id="newRunBtn" type="button">Begin a new journey</button>
+        <button class="start-btn continue" id="continueBtn" type="button">Continue saved journey</button>
       </div>
+      <p class="start-stats" id="startStats" hidden></p>
     </div>
   </div>
 
@@ -46,14 +48,14 @@
             <h1>Dice of Petalia <small>Moon Garden Trial</small></h1>
           </div>
           <div class="header-actions">
-            <button class="icon-btn side-toggle" id="sideToggle" aria-label="Open charms" aria-controls="sidePanel" aria-expanded="false"></button>
+            <button class="icon-btn side-toggle" id="sideToggle" type="button" aria-label="Open charms" aria-controls="sidePanel" aria-expanded="false"></button>
             <button class="settings-btn" id="settingsBtn" type="button">Settings</button>
           </div>
         </header>
 
         <section class="guardian-zone">
           <div class="guardian" id="guardian"></div>
-          <div class="speech"><p id="speech">Choose the dice you want to reroll, little wanderer.</p></div>
+          <div class="speech"><p id="speech" aria-live="polite">Choose the dice you want to reroll, little wanderer.</p></div>
         </section>
 
         <section class="round-card">
@@ -61,13 +63,14 @@
             <div><div class="eyebrow">Garden path</div><div class="level" id="levelText">Round 1 / 25</div></div>
             <div class="target"><div class="eyebrow">Score</div><strong><span id="roundScore">0</span> / <span id="targetScore">100</span></strong></div>
           </div>
-          <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="progress" aria-hidden="true"><div class="progress-fill" id="progressFill"></div></div>
+          <div class="round-hint" id="roundHint" aria-live="polite"></div>
         </section>
 
         <section class="score-row">
-          <div class="score-box"><div class="label">Petals</div><div class="value" id="petals">0</div></div>
-          <div class="score-box"><div class="label">Sparkle</div><div class="value">×<span id="mult">1</span></div></div>
-          <div class="score-box"><div class="label">Hand score</div><div class="value" id="preview">0</div></div>
+          <div class="score-box" title="Dice total plus hand and charm bonuses"><div class="label">Petals</div><div class="value" id="petals">0</div></div>
+          <div class="score-box" title="Petals are multiplied by sparkle"><div class="label">× Sparkle</div><div class="value">×<span id="mult">1</span></div></div>
+          <div class="score-box" title="What this hand scores if you play it now"><div class="label">= Hand score</div><div class="value" id="preview">0</div></div>
         </section>
 
         <section class="moon-table" aria-label="Moonlit dice table">
@@ -78,9 +81,10 @@
           <div class="dice-row" id="diceRow" aria-label="Five dice"></div>
         </section>
         <section class="actions">
-          <button class="btn reroll-btn" id="rerollBtn">Reroll selected <small><span id="rerolls">3</span> rerolls left</small></button>
-          <button class="btn play-btn" id="playBtn">Play this hand <small><span id="hands">3</span> hands left</small></button>
+          <button class="btn reroll-btn" id="rerollBtn" type="button" aria-keyshortcuts="R"><span id="rerollLabel">Tap dice to reroll</span> <small><span id="rerolls">3</span> <span id="rerollsUnit">rerolls left</span></small></button>
+          <button class="btn play-btn" id="playBtn" type="button" aria-keyshortcuts="P"><span id="playLabel">Play this hand</span> <small><span id="hands">3</span> <span id="handsUnit">hands left</span></small></button>
         </section>
+        <p class="key-hint">Shortcuts: <kbd>1</kbd>–<kbd>5</kbd> pick dice · <kbd>R</kbd> reroll · <kbd>P</kbd> play · <kbd>Esc</kbd> clear</p>
       </main>
 
       <aside class="side-panel" id="sidePanel">
@@ -88,16 +92,16 @@
         <div class="section-title"><span>Your lucky charms</span><span id="charmCount">0</span></div>
         <div class="charm-list" id="charmList"></div>
         <div class="side-bottom">
-          <button class="mini-btn" id="handsBtn">Hand levels</button>
-          <button class="mini-btn" id="skinsBtn">Dice garden</button>
-          <button class="mini-btn" id="restartBtn">New run</button>
+          <button class="mini-btn" id="handsBtn" type="button">Hand levels</button>
+          <button class="mini-btn" id="skinsBtn" type="button">Dice garden</button>
+          <button class="mini-btn" id="restartBtn" type="button">New run</button>
         </div>
       </aside>
     </div>
   </div>
 
-  <div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
-  <div class="toast" id="toast"></div>
+  <div class="overlay" id="overlay"><div class="modal" id="modal" role="dialog" aria-modal="true" aria-label="Lady Luma"></div></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

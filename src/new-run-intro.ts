@@ -1,5 +1,5 @@
 // @ts-nocheck
-import newRunDiceSheetSource from "./assets/wuerfelanimation.png?inline";
+import newRunDiceSheetSource from "./assets/wuerfelanimation.webp";
 
 // The painted grid is intentionally irregular. These measured bands exclude its
 // divider lines without re-centering the individual dice poses.

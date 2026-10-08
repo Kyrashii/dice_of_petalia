@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-// The last two poses in ladyluma_sad_keyed.png are separated at x=1766,
+// The last two poses in ladyluma_sad_keyed.webp are separated at x=1766,
 // rather than the regular 362px grid line. Keeping the fifth crop open to
 // x=1810 includes the left edge of the sixth pose.
 const sadFrameCrops = [

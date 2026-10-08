@@ -185,6 +185,47 @@ describe("main orchestration", () => {
     expect(browser.elements.get("#modal")?.innerHTML).toContain("The gate grows sleepy");
   });
 
+  it("can start a new journey after losing the last hand", async () => {
+    browser.localStorage.setItem("dice-of-petalia-meta-v1", JSON.stringify({ tutorialSeen: true }));
+    browser.localStorage.setItem("dice-of-petalia-save-v1", JSON.stringify({
+      level: 1, roundScore: 0, handsLeft: 1, rerollsLeft: 0, dice: [1, 2, 3, 4, 6], phase: "play", charms: []
+    }));
+    await import("../src/main");
+    browser.elements.get("#continueBtn")?.onclick?.();
+
+    await browser.elements.get("#playBtn")?.onclick?.();
+
+    expect(browser.elements.get("#modal")?.innerHTML).toContain("The gate grows sleepy");
+    expect(browser.localStorage.getItem("dice-of-petalia-save-v1")).toBeNull();
+    const pageHide = (window.addEventListener as ReturnType<typeof vi.fn>).mock.calls.find(([event]) => event === "pagehide")?.[1];
+    pageHide?.();
+    expect(browser.localStorage.getItem("dice-of-petalia-save-v1")).toBeNull();
+
+    browser.elements.get("#againBtn")?.onclick?.();
+
+    expect(browser.elements.get("#levelText")?.textContent).toBe("Round 1 / 25");
+    expect(browser.elements.get("#hands")?.textContent).toBe(3);
+    expect(JSON.parse(browser.localStorage.getItem("dice-of-petalia-save-v1") ?? "{}").handsLeft).toBe(3);
+  });
+
+  it("ignores dice shortcuts before a journey starts", async () => {
+    await import("../src/main");
+
+    expect(() => browser.typeSecret("135")).not.toThrow();
+  });
+
+  it("still starts when storage is unavailable", async () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => { throw new Error("blocked"); },
+      setItem: () => { throw new Error("blocked"); },
+      removeItem: () => { throw new Error("blocked"); }
+    });
+    await import("../src/main");
+
+    expect(() => browser.elements.get("#newRunBtn")?.onclick?.()).not.toThrow();
+    expect(browser.elements.get("#diceRow")?.innerHTML).toContain('class="pip p');
+  });
+
   it("renders an unlocked skin and refreshes it when faces finish loading", async () => {
     browser.localStorage.setItem("dice-of-petalia-luma-garden-v1", JSON.stringify({
       selected: "sakura",

@@ -3,8 +3,14 @@
 export function createSkinFaceLoader(packs, { onReady, onError }) {
   const faces = {};
 
-  async function prepareFaces(pack) {
-    if (faces[pack.id]) return;
+  const pending = {};
+  function prepareFaces(pack) {
+    if (faces[pack.id]) return Promise.resolve();
+    pending[pack.id] ??= loadFaces(pack).finally(() => delete pending[pack.id]);
+    return pending[pack.id];
+  }
+
+  async function loadFaces(pack) {
     const image = new Image();
     image.decoding = "async";
     const loaded = new Promise((resolve, reject) => { image.onload = resolve; image.onerror = reject; });
@@ -67,6 +73,11 @@ export function createSkinFaceLoader(packs, { onReady, onError }) {
 
   return {
     face: (packId, value) => faces[packId]?.[value - 1],
-    prepare: () => Promise.all(packs.map(prepareFaces)).then(onReady).catch(onError)
+    // Pass pack ids to prepare only those sheets; omit them to prepare every pack.
+    prepare: (ids) => {
+      const wanted = ids ? packs.filter(pack => ids.includes(pack.id)) : packs;
+      if (wanted.every(pack => faces[pack.id])) return Promise.resolve();
+      return Promise.all(wanted.map(prepareFaces)).then(onReady).catch(onError);
+    }
   };
 }

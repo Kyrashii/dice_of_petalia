@@ -1,5 +1,5 @@
 // @ts-nocheck
-import sadPetSheet from "./assets/ladyluma_sad_keyed.png";
+import sadPetSheet from "./assets/ladyluma_sad_keyed.webp";
 
 export function createPetSheetLoader(context) {
   function loadPetSheet(){

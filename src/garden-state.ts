@@ -1,10 +1,11 @@
 // @ts-nocheck
+import { storage } from "./storage";
 
 export function createGardenState(context) {
   function defaultGarden(){return {selected:"default",moonDrops:0,packs:Object.fromEntries(context.skinPacks.map(pack=>[pack.id,{progress:{},skipped:false,skippedTask:null}]))}}
   function loadGarden(){
     try{
-      const saved=JSON.parse(localStorage.getItem(context.gardenKey)||"null"),fresh=defaultGarden();
+      const saved=storage.getJSON(context.gardenKey,null),fresh=defaultGarden();
       if(!saved)return fresh;
       context.skinPacks.forEach(pack=>{
         const old=saved.packs?.[pack.id]||{};
@@ -15,7 +16,7 @@ export function createGardenState(context) {
       return fresh;
     }catch{return defaultGarden()}
   }
-  function saveGarden(){localStorage.setItem(context.gardenKey,JSON.stringify(context.garden))}
+  function saveGarden(){storage.setJSON(context.gardenKey,context.garden)}
   function taskDone(pack,task){return (context.garden.packs[pack.id]?.progress?.[task.id]||0)>=task.target}
   function completedTasks(pack){return pack.tasks.filter(task=>taskDone(pack,task)).length}
   function isUnlocked(pack){return completedTasks(pack)>=5}
