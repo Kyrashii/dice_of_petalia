@@ -12,7 +12,8 @@ export function createCharmRenderer(context) {
     if(!context.state.charms.length){context.query("#charmList").innerHTML=`<div class="empty-note">Win the first round and Lady Luma will offer you a lucky charm.</div>`;return}
     context.query("#charmList").innerHTML=context.state.charms.map((ch,i)=>{
       const isReady=ready.includes(ch),when=ch.family.trigger==="reroll"?"On reroll":"On play";
-      return `<div class="charm ${isReady?"ready":""}" data-charm="${i}" title="${ch.family.desc}">
+      const fresh=context.freshCharm?.index===i&&Date.now()<context.freshCharm.until;
+      return `<div class="charm ${isReady?"ready":""} ${fresh?"is-new":""}" data-charm="${i}" title="${ch.family.desc}">
       <div class="charm-icon">${context.icons.charm(ch.variant.tone)}</div><div><strong>${ch.variant.label} ${ch.family.name}${ch.rank>1?` · ${ch.rank}`:""}</strong><span>${ch.family.desc}: ${effectText(ch)}</span><em class="charm-when">${isReady?"Ready this hand":when}</em></div></div>`}).join("");
   }
   return { effectText, renderCharms };

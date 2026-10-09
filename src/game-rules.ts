@@ -65,3 +65,20 @@ export function evaluate(dice: readonly number[]): Hand {
 
   return handsData.find((hand) => hand.id === id)!;
 }
+
+/** Indices of the dice that make up the hand (all five for High Roll, straights and full sets). */
+export function scoringIndices(dice: readonly number[]): number[] {
+  const hand = evaluate(dice);
+  if (["high", "straight", "full", "five"].includes(hand.id)) return dice.map((_, index) => index);
+  const countOf = (value: number) => dice.filter((die) => die === value).length;
+  const needed = hand.id === "four" ? 4 : hand.id === "three" ? 3 : 2;
+  return dice.map((value, index) => (countOf(value) >= needed ? index : -1)).filter((index) => index >= 0);
+}
+
+/** Visual tier of a hand, used to style the banner and celebrations. */
+export function handTier(hand: Hand): "common" | "fine" | "rare" | "legendary" {
+  if (hand.mult >= 9) return "legendary";
+  if (hand.mult >= 6) return "rare";
+  if (hand.mult >= 3) return "fine";
+  return "common";
+}

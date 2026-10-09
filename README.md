@@ -17,6 +17,17 @@ Every move commits its result (state and save) before its animation plays, so co
 
 Keyboard: `1`–`5` pick dice, `R` reroll, `P` play, `Esc` clear the selection or close a menu.
 
+## Sprites
+
+Lady Luma's poses and the new-run dice intro are generated from the raw sheets in `sprite-sources/`:
+
+```sh
+pip install pillow numpy scipy
+python3 scripts/build_sprites.py
+```
+
+This writes `src/assets/luma-atlas.webp` and `src/assets/intro-dice.webp`. The atlas is a uniform 400×420 grid (rows: idle, happy, dice, sad) with every pose on the same baseline. The script re-slices parts that crossed the old cell boundaries, removes the lime chroma-key halo from the sad poses and scales them to match, and strips grid divider lines from the intro sheet. Animation clips that use the atlas are defined in `src/luma.ts`.
+
 ## Vercel
 
 Import this repository as a Vite project. Vercel's defaults are sufficient: build command `pnpm build` and output directory `dist`.

@@ -1,6 +1,9 @@
 // @ts-nocheck
+import "@fontsource-variable/fredoka";
+import "@fontsource-variable/nunito";
 import "./styles.css";
-import { evaluate, handsData, levelPetals, rollFive, targetFor } from "./game-rules";
+import { evaluate, handTier, handsData, levelPetals, rollFive, scoringIndices, targetFor } from "./game-rules";
+import { animateNumber } from "./number-animation";
 import { burstColors, charmFamilies, skinPacks, variants } from "./game-content";
 import { createSkinFaceLoader } from "./skin-faces";
 import { createAudioController } from "./audio-controller";
@@ -8,9 +11,7 @@ import { createVisualEffects } from "./visual-effects";
 import { createRerollCharmEffects } from "./reroll-charm-effects";
 import { createLumaSpeech } from "./luma-speech";
 import { createDiceAnimation } from "./dice-animation";
-import { createPetSpriteRenderer } from "./pet-sprite-renderer";
-import { createPetSheetLoader } from "./pet-sheet-loader";
-import { createPetAnimation } from "./pet-animation";
+import { createLuma } from "./luma";
 import { createUiFeedback } from "./ui-feedback";
 import { createGameServices } from "./game-services";
 import { createRunSave } from "./run-save";
@@ -37,15 +38,6 @@ import { emptyBonus } from "./run-state";
     const META_KEY = "dice-of-petalia-meta-v1";
     const GARDEN_KEY = "dice-of-petalia-luma-garden-v1";
     const audio = createAudioController(storage.getJSON("petalia-sound", true) !== false);
-    let petTimer = null;
-    let petImage = null;
-    let petImageReady = false;
-    let sadPetImage = null;
-    let sadPetImageReady = false;
-    let lastPetState = "idle";
-    let lastPetFrame = 0;
-    let lastLossPetFrame = 0;
-    const petRows = {idle:0,happy:1,dice:2};
     const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     const effects = createVisualEffects({query:$,colors:burstColors,reduceMotion});
     const newRunIntro = createNewRunIntro({query:$,audio,reduceMotion});
@@ -81,15 +73,6 @@ import { emptyBonus } from "./run-state";
       get selected(){return selected},
       get busy(){return busy}, set busy(value){busy=value},
       query:$,
-      get petImage(){return petImage}, set petImage(value){petImage=value},
-      get petImageReady(){return petImageReady}, set petImageReady(value){petImageReady=value},
-      get sadPetImage(){return sadPetImage}, set sadPetImage(value){sadPetImage=value},
-      get sadPetImageReady(){return sadPetImageReady}, set sadPetImageReady(value){sadPetImageReady=value},
-      get lastPetState(){return lastPetState}, set lastPetState(value){lastPetState=value},
-      get lastPetFrame(){return lastPetFrame}, set lastPetFrame(value){lastPetFrame=value},
-      get lastLossPetFrame(){return lastLossPetFrame}, set lastLossPetFrame(value){lastLossPetFrame=value},
-      get petTimer(){return petTimer}, set petTimer(value){petTimer=value},
-      petRows,
       reduceMotion,
       audio,effects,icons,
       saveKey:SAVE_KEY,
@@ -101,14 +84,13 @@ import { emptyBonus } from "./run-state";
     };
     const { applyRerollCharmEffects } = createRerollCharmEffects(appContext);
     const { speechForHand, roundSpeech } = createLumaSpeech(appContext);
-    const { animateDice } = createDiceAnimation(appContext);
-    const petSpriteRenderer = createPetSpriteRenderer(appContext);
-    Object.assign(appContext,petSpriteRenderer);
-    const { loadPetSheet } = createPetSheetLoader(appContext);
-    const petAnimation = createPetAnimation(appContext);
-    Object.assign(appContext,petAnimation);
-    const { startPetIdle, animatePet, showSadPet } = petAnimation;
+    const diceAnimation = createDiceAnimation(appContext);
+    const { animateDice, tumbleDice, landDice, dealDice, highlightScoring } = diceAnimation;
+    const luma = createLuma(appContext);
+    Object.assign(appContext,luma);
+    const { loadPetSheet, startPetIdle, animatePet, showSadPet } = luma;
     const { showModal, closeModal, toast, wait, flashCharms } = createUiFeedback(appContext);
+    appContext.wait=wait;
     const gameServices = createGameServices(appContext);
     Object.assign(appContext,gameServices);
     const { burst, popScore, lumaHearts, lumaStars, clickSound, rollSound, scoreSound, winSound, failSound, updateSound } = gameServices;
@@ -194,11 +176,14 @@ import { emptyBonus } from "./run-state";
     const saveMeta=meta=>storage.setJSON(META_KEY,meta);
     function canAct(){return !!state&&!busy&&state.phase==="play"&&!$("#overlay").classList.contains("show")}
     // Shows score, progress and counters straight away, before the dice animation finishes.
-    function renderCommittedScore(){
-      $("#roundScore").textContent=state.roundScore.toLocaleString();
-      $("#progressFill").style.width=`${Math.min(100,state.roundScore/state.target*100)}%`;
+    function renderCommittedCounters(){
       $("#hands").textContent=state.handsLeft;$("#rerolls").textContent=state.rerollsLeft;
       $("#rerollBtn").disabled=true;$("#playBtn").disabled=true;$("#playBtn").classList.remove("clears");
+    }
+    function renderCommittedScore(){
+      animateNumber($("#roundScore"),state.roundScore,{duration:700,reduceMotion});
+      $("#progressFill").style.width=`${Math.min(100,state.roundScore/state.target*100)}%`;
+      renderCommittedCounters();
     }
 
     // Each action commits its outcome (state + save) first, then plays the animation.
@@ -211,18 +196,18 @@ import { emptyBonus } from "./run-state";
       state.rerollsLeft--;state.rerollsUsed++;
       const hits=triggered(context("reroll",{oldDice,newDice:[...state.dice],changed,oldHand,newHand:evaluate(state.dice)}));
       applyRerollCharmEffects(hits);
-      persistSafe();renderCommittedScore();animateDice(idx);
+      persistSafe();renderCommittedCounters();
       recordGardenEvent({type:"reroll",changed:idx.length,sixes:state.dice.filter((n,i)=>changed[i]&&n===6).length,ones:state.dice.filter((n,i)=>changed[i]&&n===1).length});
-      await wait(360);
+      await tumbleDice(idx,420);
       emitSkinEffect("roll");
       selected.clear();busy=false;
-      speechForHand();render();
+      speechForHand();render();landDice(idx);audio.land?.();
       flashCharms(hits);
     }
     async function playHand(){
       if(!canAct()||state.handsLeft<1)return;
       busy=true;selected.clear();
-      const p=previewStats(),hits=p.triggers,playedDice=[...state.dice];
+      const p=previewStats(),hits=p.triggers,playedDice=[...state.dice],neededBefore=state.target-state.roundScore;
       state.roundScore+=p.total;state.totalScore+=p.total;state.handsLeft--;
       state.rerollsLeft+=p.rerollRefund;state.bonus=emptyBonus();state.refunded=[];
       recordGardenEvent({type:"play",dice:playedDice,hand:p.hand.id,score:p.total,rerollsUsed:state.rerollsUsed});
@@ -234,19 +219,27 @@ import { emptyBonus } from "./run-state";
       }else if(lost)finishRun(false);
       else{state.dice=rollFive();state.initialDice=[...state.dice];state.rerollsUsed=0;persistSafe()}
 
-      animatePet(p.mult>=4?"happy":"dice",1);
+      // Score choreography: the scoring dice hop in turn, the hand name blooms,
+      // then the points fly into the round total.
+      const tier=handTier(p.hand),scoring=scoringIndices(playedDice);
+      renderCommittedCounters();
+      animatePet(tier==="rare"||tier==="legendary"?"cheer":p.mult>=4?"happy":"dice",1);
+      scoring.forEach((_,k)=>setTimeout(()=>audio.tick?.(k),reduceMotion?0:k*85));
+      await highlightScoring(scoring,tier);
+      if(tier!=="common")effects.flourish(`${p.hand.name}!`,tier);
       if(p.hand.mult>=4)lumaStars(p.hand.mult);
       flashCharms(hits);scoreSound(p.mult);
-      popScore(p.total);burst(window.innerWidth/2,window.innerHeight*.58,16);
+      effects.scoreFly(p.total,"#preview","#roundScore");burst(window.innerWidth/2,window.innerHeight*.58,tier==="legendary"?34:16);
       renderCommittedScore();
       if(p.rerollRefund)toast(`Golden charm${p.rerollRefund>1?"s":""} returned ${p.rerollRefund} reroll${p.rerollRefund>1?"s":""}.`);
-      await wait(700);
-      if(won){render();await wait(400);celebrateRoundWin();return}
-      if(lost){await wait(450);showGameOver();return}
-      busy=false;speechForHand();render();animateDice([0,1,2,3,4]);
+      await wait(650);
+      if(won){render();await wait(300);celebrateRoundWin();return}
+      if(lost){animatePet("wince");await wait(450);showGameOver();return}
+      if(p.total<neededBefore*.25)animatePet("wince");
+      busy=false;speechForHand();render();dealDice();
     }
     function celebrateRoundWin(){
-      winSound();animatePet("happy",2);burst(window.innerWidth/2,window.innerHeight/2,40);
+      winSound();animatePet("cheer",2);burst(window.innerWidth/2,window.innerHeight/2,40);effects.petalRain(40);
       $("#speech").textContent="That was lovely! Choose a charm for the path ahead.";
       showCharmChoices();
     }
@@ -279,6 +272,8 @@ import { emptyBonus } from "./run-state";
       const existing=state.charms.find(c=>c.familyIndex===ch.familyIndex&&c.variantIndex===ch.variantIndex);
       if(existing)existing.rank++;else state.charms.push({family:ch.family,variant:ch.variant,familyIndex:ch.familyIndex,variantIndex:ch.variantIndex,rank:1});
       state.charmChoices=[];
+      // The new or upgraded charm glows in the charm list for a moment.
+      appContext.freshCharm={index:existing?state.charms.indexOf(existing):state.charms.length-1,until:Date.now()+4000};
       clickSound(620,.08);state.phase="upgradeHand";persistSafe();renderStatus();showHandUpgrade();
     }
     function showHandUpgrade(){
@@ -292,7 +287,8 @@ import { emptyBonus } from "./run-state";
       state.handLevels[id]++;clickSound(760,.1);closeModal();
       if(state.level>=25){victory();return}
       state.level++;state.target=targetFor(state.level);state.roundScore=0;state.handsLeft=3;state.rerollsLeft=3;state.dice=rollFive();state.initialDice=[...state.dice];state.rerollsUsed=0;state.bonus=emptyBonus();state.refunded=[];state.phase="play";
-      busy=false;$("#speech").textContent=`${roundSpeech()} Reach ${state.target.toLocaleString()} petals.`;persistSafe();render();animateDice([0,1,2,3,4]);
+      busy=false;$("#speech").textContent=`${roundSpeech()} Reach ${state.target.toLocaleString()} petals.`;persistSafe();render();
+      effects.roundCard(`Round ${state.level}`,`Reach ${state.target.toLocaleString()} petals`);dealDice();
     }
     // Records the result and clears the save right away, so a finished run can't be continued.
     function finishRun(won){
@@ -307,7 +303,7 @@ import { emptyBonus } from "./run-state";
     function gameOver(){finishRun(false);showGameOver()}
     function showGameOver(){
       failSound();startPetIdle();
-      showModal(`<div class="loss-ending"><canvas class="loss-pet-sprite" width="181" height="260" aria-hidden="true"></canvas><section class="loss-window"><h2>The gate grows sleepy</h2><p class="lead">You reached round ${state.level} and gathered ${state.totalScore.toLocaleString()} starlight. Lady Luma will remember your courage, even if the garden resets.</p>
+      showModal(`<div class="loss-ending"><canvas class="loss-pet-sprite" width="400" height="420" aria-hidden="true"></canvas><section class="loss-window"><h2>The gate grows sleepy</h2><p class="lead">You reached round ${state.level} and gathered ${state.totalScore.toLocaleString()} starlight. Lady Luma will remember your courage, even if the garden resets.</p>
         ${runSummary()}<button class="primary" id="againBtn" type="button">Try another journey</button></section></div>`);
       $("#modal").classList.add("loss-modal");
       showSadPet();
@@ -315,7 +311,7 @@ import { emptyBonus } from "./run-state";
     }
     function victory(){
       finishRun(true);
-      burst(window.innerWidth/2,window.innerHeight/2,60);winSound();animatePet("happy",3);
+      burst(window.innerWidth/2,window.innerHeight/2,60);effects.petalRain(90);winSound();animatePet("cheer",3);
       showModal(`<h2>The starlight gate opens</h2><p class="lead">You completed all 25 rounds with ${state.totalScore.toLocaleString()} starlight. Lady Luma crowns you the Moon Garden's luckiest wanderer.</p>
         <div class="ending-flower" style="text-align:center">${icons.flower}</div>${runSummary()}<button class="primary" id="againBtn" type="button">Begin a fresh journey</button>`);
       $("#againBtn").onclick=()=>{closeModal();newRun()};
@@ -326,9 +322,10 @@ import { emptyBonus } from "./run-state";
     }
     function beginNewRun(){
       state=defaultState();state.initialDice=[...state.dice];selected.clear();busy=false;startPetIdle();
-      $("#startScreen").classList.add("hidden");persistSafe();render();speechForHand();animateDice([0,1,2,3,4]);
+      $("#startScreen").classList.add("hidden");persistSafe();render();speechForHand();dealDice();
       const meta=loadMeta();
       if(!meta.tutorialSeen){meta.tutorialSeen=true;saveMeta(meta);showHelp()}
+      else effects.roundCard("Round 1",`Reach ${state.target.toLocaleString()} petals`);
     }
     function newRun(){
       if(busy)return;
@@ -340,7 +337,7 @@ import { emptyBonus } from "./run-state";
     }
     function continueRun(){
       if(!load()){beginNewRun();return}
-      $("#startScreen").classList.add("hidden");selected.clear();busy=false;render();startPetIdle();
+      $("#startScreen").classList.add("hidden");selected.clear();busy=false;render();startPetIdle();dealDice();
       if(state.phase==="chooseCharm")showCharmChoices()
       else if(state.phase==="upgradeHand")showHandUpgrade();
       else speechForHand();
@@ -430,8 +427,8 @@ import { emptyBonus } from "./run-state";
 
     function init(){
       $("#brandMark").innerHTML=icons.flower;
-      $("#guardian").innerHTML=`<button class="pet-button" type="button" aria-label="Pet Lady Luma" title="Pet Lady Luma"><canvas class="pet-sprite pet-canvas" width="314" height="418"></canvas></button>`;
-      $("#startGuardian").innerHTML=`<canvas class="pet-sprite pet-canvas" width="314" height="418" aria-hidden="true"></canvas>`;
+      $("#guardian").innerHTML=`<button class="pet-button" type="button" aria-label="Pet Lady Luma" title="Pet Lady Luma"><canvas class="pet-sprite pet-canvas" width="400" height="420"></canvas></button>`;
+      $("#startGuardian").innerHTML=`<canvas class="pet-sprite pet-canvas" width="400" height="420" aria-hidden="true"></canvas>`;
       $("#sideToggle").innerHTML=icons.bag;
       $("#newRunBtn").onclick=newRun;$("#continueBtn").onclick=continueRun;$("#rerollBtn").onclick=reroll;$("#playBtn").onclick=playHand;
       $("#settingsBtn").onclick=showSettings;$("#handsBtn").onclick=showHandLevels;$("#skinsBtn").onclick=showSkinMenu;$("#restartBtn").onclick=confirmRestart;
@@ -469,6 +466,17 @@ import { emptyBonus } from "./run-state";
       const persistIfPlaying=()=>{if(state)persistSafe()};
       window.addEventListener("pagehide",persistIfPlaying);
       document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")persistIfPlaying()});
+      effects.startAmbient($("#ambient"));
+      // The speech bubble gives a little pop whenever Luma says something new.
+      if(typeof MutationObserver!=="undefined")new MutationObserver(()=>{const bubble=$(".speech");if(!bubble||reduceMotion)return;bubble.classList.remove("speech-pop");void bubble.offsetWidth;bubble.classList.add("speech-pop")}).observe($("#speech"),{childList:true,characterData:true,subtree:true});
+      // Soft ripple from the press point on the game's chunky buttons.
+      document.addEventListener("pointerdown",e=>{
+        const button=e.target?.closest?.(".btn,.primary,.start-btn,.choice,.upgrade,.setting-link,.keeper-action");
+        if(!button||button.disabled||reduceMotion)return;
+        const rect=button.getBoundingClientRect(),ripple=document.createElement("span");
+        ripple.className="ripple";ripple.style.left=`${e.clientX-rect.left}px`;ripple.style.top=`${e.clientY-rect.top}px`;
+        button.appendChild(ripple);setTimeout(()=>ripple.remove(),600);
+      });
       updateStartStats();updateContinue();updateSound();loadPetSheet();prepareSkinSheets();startPetIdle();
     }
     init();

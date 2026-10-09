@@ -31,6 +31,11 @@ export function createAudioController(initiallyEnabled) {
     click: (frequency = 440, volume = .03) => tone(frequency, .08, "sine", volume),
     roll: () => [0, 1, 2, 3].forEach(index => tone(180 + index * 55, .08, "triangle", .025, index * .06)),
     score: multiplier => { tone(520, .15, "sine", .05); tone(660, .18, "sine", .04, .08); if (multiplier > 5) tone(880, .22, "sine", .04, .16); },
+    // A rising chime for each scoring die, a soft clack when dice land or are dealt.
+    tick: index => tone(523 * Math.pow(1.122, index), .12, "sine", .035),
+    land: () => { tone(150, .05, "triangle", .03); tone(220, .06, "triangle", .02, .04); },
+    deal: () => [0, 1, 2, 3, 4].forEach(index => tone(260 + index * 30, .05, "triangle", .018, index * .07)),
+    bloom: () => [392, 523, 659, 784, 1047].forEach((frequency, index) => tone(frequency, .4, "sine", .035, index * .09)),
     introHop: () => tone(360, .11, "sine", .035),
     introSparkle: () => { tone(740, .12, "sine", .032); tone(1047, .16, "sine", .022, .055); },
     introConfirm: () => { tone(523, .18, "sine", .045); tone(784, .25, "sine", .032, .075); },

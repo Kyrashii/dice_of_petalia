@@ -8,7 +8,12 @@ export function createDiceSelection(context) {
     if(context.selected.has(i))context.selected.delete(i);else context.selected.add(i);
     context.renderDice();context.renderStatus();
     // Re-rendering replaces the buttons; keep keyboard users on the die they toggled.
-    if(hadFocus)context.query(`.die[data-i="${i}"]`)?.focus?.({preventScroll:true});
+    const die=context.query(`.die[data-i="${i}"]`);
+    if(hadFocus)die?.focus?.({preventScroll:true});
+    if(die&&!context.reduceMotion){
+      const name=context.selected.has(i)?"just-picked":"just-dropped";
+      die.classList.add(name);setTimeout(()=>die.classList.remove(name),300);
+    }
     context.clickSound(context.selected.has(i)?520:430,.03);
   }
   function clearSelection(){

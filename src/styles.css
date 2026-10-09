@@ -97,7 +97,7 @@
     .start-screen{position:fixed;z-index:60;inset:0;display:grid;place-items:center;padding:20px;background:linear-gradient(145deg,#fff1f8,#eee9ff 50%,#ddf8f1);transition:.5s}
     .start-screen.hidden{opacity:0;pointer-events:none;transform:scale(1.03)}
     .start-card{text-align:center;width:min(100%,500px)}.start-guardian{height:260px}
-    .start-card h2{font-size:clamp(42px,10vw,72px);line-height:.85;margin:8px 0;color:#785e96;letter-spacing:-3px}.start-card h2 span{display:block;font-size:13px;letter-spacing:5px;color:var(--rose);margin-top:14px;text-transform:uppercase}
+    .start-card h2{font-size:clamp(42px,10vw,72px);line-height:.85;margin:8px 0;color:#785e96;letter-spacing:-3px}.start-card h2 .title-sub{display:block;font-size:13px;letter-spacing:5px;color:var(--rose);margin-top:14px;text-transform:uppercase}
     .start-card p{max-width:380px;margin:20px auto;color:var(--muted);font-weight:700;line-height:1.5}
     .start-actions{display:grid;gap:10px;max-width:300px;margin:auto}.start-btn{border:0;border-radius:20px;padding:15px;font-weight:1000;cursor:pointer;box-shadow:0 8px 18px rgba(83,61,103,.13)}
     .start-btn.new{background:linear-gradient(135deg,var(--pink),#d5b5ff);color:#fff}.start-btn.continue{background:#fff;color:#765b93}.start-btn:disabled{opacity:.58;cursor:wait}
@@ -117,7 +117,6 @@
       --ink:#49385f;--muted:#786b89;--paper:#fffafd;--pink:#f3a7c7;--pink2:#fbdbea;
       --lav:#b9a7df;--lav2:#e8def6;--mint:#a9d7c1;--mint2:#dcefe6;--sky:#a8cfe4;
       --cream:#f9dc8f;--rose:#c85f91;--line:#dfd2e8;--shadow:8px 9px 0 #d8cce7;
-      --pet-sheet:url("./assets/lady-luma-sprite-sheet.webp");
       --luma-pedestal:url("./assets/ladyluma_podest.webp");
     }
     html,body{font-family:"Avenir Next Rounded","Arial Rounded MT Bold","Trebuchet MS","Segoe UI",sans-serif}
@@ -304,7 +303,7 @@
     .start-guardian .pet-canvas{position:relative;z-index:2;display:block;justify-self:center;transform:translateY(-12px)}
     .start-guardian .pet-canvas{width:195px;height:260px}
     .start-card h2{font-size:clamp(42px,10vw,70px);color:#664b80}
-    .start-card h2 span{font-family:"Courier New",monospace;font-size:11px;color:#a64d77}
+    .start-card h2 .title-sub{font-family:"Courier New",monospace;font-size:11px;color:#a64d77}
     .start-card p{color:#5f516f}.start-btn{border-radius:10px;border:2px solid #765b93;box-shadow:4px 5px 0 #765b93}
     .start-btn.new{background:#efa4c5;color:#49385f}.start-btn.continue{background:#fffafd}
     .toast{border:2px solid #fff;border-radius:8px;background:#5c4871}
@@ -547,3 +546,168 @@
 .hand-info.current{border-color:#e3c974;background:#fffbea}
 .confirm-actions{display:flex;gap:10px;justify-content:center;align-items:center;flex-wrap:wrap}.confirm-actions .primary{margin:0}
 @media(max-width:800px),(hover:none){.help-keys{display:none}}
+
+/* ───────── Visual polish & motion (v3) ───────── */
+:root{
+  --font-display:"Fredoka Variable","Fredoka","Arial Rounded MT Bold",system-ui,sans-serif;
+  --font-body:"Nunito Variable","Nunito","Avenir Next Rounded",system-ui,sans-serif;
+  --tier-glow:#ffd7ea;
+}
+html,body,button{font-family:var(--font-body)}
+h1,.modal h2,.start-card h2,.level,.hand-banner strong,.skin-card h3,.moon-drops b,.run-summary dd,.score-box .value,.btn,.target strong,.primary,.start-btn,.choice h3,.upgrade strong,.tip b{font-family:var(--font-display)!important;letter-spacing:-.2px}
+h1,.modal h2,.start-card h2{font-weight:650;letter-spacing:-.8px}
+.eyebrow,.score-box .label,.section-title,h1 small,.btn small,.settings-btn,.mobile-panel-close,.mobile-page-close,.charm-when,.choice-when,.start-stats,.moon-drops span,.skin-progress b,.run-summary dt,kbd,.start-card h2 .title-sub{font-family:var(--font-body)!important;font-weight:800!important}
+.btn{font-weight:600}.btn small{letter-spacing:1.4px}
+h1{background:linear-gradient(100deg,#7a4f9c 10%,#c4588f 55%,#8a62c4 90%);-webkit-background-clip:text;background-clip:text;color:transparent}
+h1 small{-webkit-text-fill-color:#b95483}
+
+/* Start screen: floating title, glowing pedestal, shimmering call to action. */
+.start-card{animation:cardRise .7s cubic-bezier(.2,.9,.3,1) both}
+.start-card h2 .title-word{display:inline-block;background:linear-gradient(100deg,#7a4f9c,#d2659b 60%,#8a62c4);-webkit-background-clip:text;background-clip:text;color:transparent;animation:titleFloat 4.2s ease-in-out infinite}
+.start-card h2 .title-word:nth-child(2){animation-delay:.25s}.start-card h2 .title-word:nth-child(3){animation-delay:.5s}
+.start-card h2 .title-sub{display:block}
+.start-guardian:after{display:block!important;content:"";position:absolute;z-index:0;left:50%;bottom:-6px;width:230px;height:90px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(ellipse,rgba(255,240,180,.75),transparent 70%);animation:pedestalGlow 3.4s ease-in-out infinite}
+.start-btn.new{position:relative;overflow:hidden;background:linear-gradient(135deg,#f3a7c7,#e7a4d8 55%,#c9b2f2)}
+.start-btn.new:before{content:"";position:absolute;inset:0;background:linear-gradient(110deg,transparent 30%,rgba(255,255,255,.55) 48%,transparent 66%);transform:translateX(-120%);animation:sheen 3.6s ease-in-out 1.2s infinite}
+@keyframes cardRise{from{transform:translateY(24px) scale(.97)}}
+@keyframes titleFloat{50%{transform:translateY(-5px) rotate(-1deg)}}
+@keyframes pedestalGlow{50%{opacity:.55;transform:translateX(-50%) scale(1.08)}}
+@keyframes sheen{40%,100%{transform:translateX(120%)}}
+
+/* Luma: the canvas keeps the atlas aspect; breathing and reaction motions compose with layout transforms. */
+canvas.pet-canvas,canvas.loss-pet-sprite{width:auto!important;max-width:none}
+.pet-canvas{transform-origin:50% 88%;animation:lumaBreathe 3.4s ease-in-out infinite}
+#guardian[data-luma-move="hop"] .pet-canvas{animation:lumaHop .4s cubic-bezier(.3,.8,.4,1)}
+#guardian[data-luma-move="bounce"] .pet-canvas{animation:lumaBounce .5s cubic-bezier(.3,1.5,.5,1)}
+#guardian[data-luma-move="squish"] .pet-canvas{animation:lumaSquish .32s ease-out}
+#guardian[data-luma-move="shiver"] .pet-canvas{animation:lumaShiver .5s linear}
+@keyframes lumaBreathe{50%{scale:1.012 .988}}
+@keyframes lumaHop{40%{translate:0 -16px;scale:.97 1.04}75%{translate:0 0;scale:1.05 .95}}
+@keyframes lumaBounce{30%{scale:1.08 .92}60%{scale:.96 1.05;translate:0 -6px}}
+@keyframes lumaSquish{35%{scale:1.1 .88}70%{scale:.97 1.03}}
+@keyframes lumaShiver{10%,50%,90%{translate:-2px 0}30%,70%{translate:2px 0}}
+.speech.speech-pop{animation:speechPop .34s cubic-bezier(.3,1.4,.5,1)}
+@keyframes speechPop{0%{transform:scale(.96);opacity:.6}}
+
+/* Dice: soft porcelain faces with lifted pips. */
+.moon-table .die:not(.skinned-die){background:radial-gradient(circle at 28% 22%,#fff 0 38%,#fbf4ff 68%,#efe2f6 100%);border-color:#efe3f5;box-shadow:inset 0 -5px 0 rgba(201,180,221,.35),inset 0 2px 0 #fff,0 7px 0 #d8c7e1,0 13px 16px rgba(52,36,70,.24)}
+.moon-table .die:not(.skinned-die).selected{background:radial-gradient(circle at 28% 22%,#fff 0 34%,#ffeef7 70%,#fbd7ea 100%);box-shadow:inset 0 -5px 0 rgba(232,140,185,.35),0 0 0 3px rgba(255,255,255,.9),0 0 0 6px rgba(236,128,180,.55),0 16px 20px rgba(52,36,70,.28)}
+.pip{background:radial-gradient(circle at 35% 30%,#c79ad8 0 20%,#8a62b4 62%,#6f4c98);box-shadow:inset 0 -1px 1px rgba(40,20,60,.35),0 1px 0 rgba(255,255,255,.8)}
+.moon-table .die.selected{animation:dieFloat 1.6s ease-in-out infinite}
+.moon-table .die.selected:after{content:"↻ REROLL";font-family:var(--font-body);font-weight:900;letter-spacing:.8px}
+@keyframes dieFloat{50%{transform:translateY(calc(var(--curve-y) - 17px)) rotate(calc(var(--curve-r) + 2deg))}}
+.die.just-picked{animation:diePick .28s cubic-bezier(.3,1.6,.5,1)!important}
+.die.just-dropped{animation:dieDrop .28s ease-out!important}
+@keyframes diePick{0%{transform:translateY(var(--curve-y,0px)) rotate(var(--curve-r,0deg)) scale(.92)}70%{transform:translateY(calc(var(--curve-y,0px) - 16px)) rotate(var(--curve-r,0deg)) scale(1.06)}}
+@keyframes dieDrop{0%{transform:translateY(calc(var(--curve-y,0px) - 13px)) rotate(var(--curve-r,0deg))}70%{transform:translateY(calc(var(--curve-y,0px) + 3px)) rotate(var(--curve-r,0deg)) scale(1.04,.96)}}
+.die.tumbling{animation:dieTumble .42s cubic-bezier(.3,.6,.4,1) var(--anim-delay,0ms) both!important}
+@keyframes dieTumble{0%{transform:translateY(var(--curve-y,0px)) rotate(var(--curve-r,0deg))}30%{transform:translateY(calc(var(--curve-y,0px) - 30px)) rotate(calc(var(--curve-r,0deg) + 150deg)) scale(.88)}65%{transform:translateY(calc(var(--curve-y,0px) - 12px)) rotate(calc(var(--curve-r,0deg) + 290deg)) scale(.95)}100%{transform:translateY(var(--curve-y,0px)) rotate(calc(var(--curve-r,0deg) + 360deg))}}
+.die.landing{animation:dieLand .4s cubic-bezier(.3,1.4,.5,1) var(--anim-delay,0ms) both}
+@keyframes dieLand{0%{transform:translateY(calc(var(--curve-y,0px) + 3px)) rotate(var(--curve-r,0deg)) scale(1.14,.84)}45%{transform:translateY(calc(var(--curve-y,0px) - 7px)) rotate(var(--curve-r,0deg)) scale(.95,1.06)}}
+.die.dealing{animation:dieDeal .52s cubic-bezier(.25,1.2,.45,1) var(--anim-delay,0ms) both}
+@keyframes dieDeal{0%{opacity:0;transform:translateY(calc(var(--curve-y,0px) - 110px)) rotate(calc(var(--curve-r,0deg) - 50deg)) scale(.7)}60%{opacity:1;transform:translateY(calc(var(--curve-y,0px) + 4px)) rotate(var(--curve-r,0deg)) scale(1.08,.92)}}
+.die.dimmed{opacity:.5;filter:saturate(.5);transition:opacity .2s,filter .2s}
+.die.scoring{animation:dieScore .5s cubic-bezier(.3,1.5,.5,1) var(--anim-delay,0ms) both;z-index:3}
+.die[data-tier="fine"]{--tier-glow:#c8b6ff}.die[data-tier="rare"]{--tier-glow:#ffd36e}.die[data-tier="legendary"]{--tier-glow:#ff8fcf}
+.moon-table .die:not(.skinned-die).scoring{box-shadow:inset 0 -5px 0 rgba(201,180,221,.35),0 7px 0 #d8c7e1,0 0 0 4px var(--tier-glow),0 0 26px 6px var(--tier-glow)}
+.skinned-die.scoring .skin-face{filter:drop-shadow(0 0 10px var(--tier-glow)) drop-shadow(0 0 18px var(--tier-glow))}
+@keyframes dieScore{0%{transform:translateY(var(--curve-y,0px)) rotate(var(--curve-r,0deg))}40%{transform:translateY(calc(var(--curve-y,0px) - 22px)) rotate(var(--curve-r,0deg)) scale(1.12)}100%{transform:translateY(calc(var(--curve-y,0px) - 6px)) rotate(var(--curve-r,0deg)) scale(1.04)}}
+.dust-puff{position:fixed;z-index:60;width:9px;height:9px;border-radius:50%;background:rgba(255,248,255,.85);pointer-events:none;transform:translate(-50%,-50%);animation:dustPuff .55s ease-out forwards}
+@keyframes dustPuff{to{transform:translate(calc(-50% + var(--drift-x)),calc(-50% - 12px)) scale(2.4);opacity:0}}
+
+/* Hand banner: a ribbon that reacts and colours itself by hand tier. */
+.hand-banner span{display:block;margin-top:3px}
+.hand-banner strong{display:inline-block;padding:2px 16px 3px;border-radius:99px;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.32);text-shadow:0 2px 0 rgba(73,40,110,.35);font-weight:600}
+.hand-banner[data-tier="fine"] strong{background:rgba(200,182,255,.32);box-shadow:0 0 14px rgba(200,182,255,.5)}
+.hand-banner[data-tier="rare"] strong{background:linear-gradient(90deg,rgba(255,217,142,.45),rgba(255,190,120,.35));box-shadow:0 0 18px rgba(255,211,110,.6)}
+.hand-banner[data-tier="legendary"] strong{background:linear-gradient(90deg,#ff9fcf,#ffd98e,#a8e6cf,#a9d8f5,#c8b6ff,#ff9fcf);background-size:200% 100%;animation:rainbowSlide 2.4s linear infinite;box-shadow:0 0 22px rgba(255,159,207,.7)}
+.hand-banner.hand-change strong{animation:bannerPop .45s cubic-bezier(.3,1.6,.5,1)}
+.hand-banner.hand-change[data-tier="legendary"] strong{animation:bannerPop .45s cubic-bezier(.3,1.6,.5,1),rainbowSlide 2.4s linear infinite}
+@keyframes bannerPop{0%{transform:scale(.8);opacity:.4}60%{transform:scale(1.1)}}
+@keyframes rainbowSlide{to{background-position:200% 0}}
+
+/* Round progress: a glowing ribbon with a twinkling head. */
+.progress{height:13px;overflow:hidden}
+.progress-fill{background:linear-gradient(90deg,#f3a7c7,#c79be0 55%,#f6cf74);box-shadow:0 0 10px rgba(243,167,199,.55)}
+.progress-fill:after{display:block!important;content:"";position:absolute;inset:0 0 0 auto;width:16px;border-radius:50%;background:radial-gradient(circle,#fff 0 30%,rgba(255,240,190,.8) 50%,transparent 72%);animation:headTwinkle 1.3s ease-in-out infinite}
+.progress.almost .progress-fill{animation:progressHint 1.1s ease-in-out infinite}
+.progress.full{box-shadow:0 0 0 2px #fff,0 0 16px rgba(246,207,116,.9)}
+.progress.full .progress-fill{background:linear-gradient(90deg,#f6cf74,#ffe7a6,#f3a7c7,#f6cf74);background-size:200% 100%;animation:rainbowSlide 1.6s linear infinite}
+@keyframes headTwinkle{50%{opacity:.45;transform:scale(.8)}}
+@keyframes progressHint{50%{filter:brightness(1.12) saturate(1.2);box-shadow:0 0 16px rgba(122,199,168,.8)}}
+
+/* Numbers pop as they count. */
+.num-up{animation:numUp .45s ease-out}.num-down{animation:numDown .35s ease-out}
+@keyframes numUp{30%{transform:scale(1.14);color:#d2659b}}
+@keyframes numDown{30%{transform:scale(.92);opacity:.7}}
+.score-box .value{display:inline-block}
+#roundScore{display:inline-block}
+
+/* Buttons: icons and a press ripple. */
+#rerollLabel:before{content:"↻ ";font-weight:700}
+#playLabel:before{content:"✿ "}
+.primary,.start-btn,.choice,.upgrade,.setting-link,.keeper-action{position:relative;overflow:hidden}
+.ripple{position:absolute;width:14px;height:14px;border-radius:50%;background:rgba(255,255,255,.7);transform:translate(-50%,-50%) scale(0);pointer-events:none;animation:ripple .6s ease-out forwards}
+@keyframes ripple{to{transform:translate(-50%,-50%) scale(26);opacity:0}}
+.play-btn{background:linear-gradient(135deg,#c9ecdb,#a7dcc9)}.reroll-btn{background:linear-gradient(135deg,#fff0bf,#ffdca0)}
+
+/* Celebrations. */
+.petal-fall{position:fixed;z-index:85;top:-24px;width:var(--size,12px);height:calc(var(--size,12px) * .72);border-radius:85% 0 85% 0;pointer-events:none;opacity:.95;box-shadow:inset -2px -2px 0 rgba(255,255,255,.35);animation:petalFall var(--fall-time,2.4s) cubic-bezier(.35,.1,.6,1) var(--fall-delay,0s) both}
+@keyframes petalFall{0%{transform:translate(0,0) rotate(0)}100%{transform:translate(var(--sway),110vh) rotate(var(--spin));opacity:.85}}
+.hand-flourish{position:fixed;z-index:80;left:50%;top:45%;pointer-events:none;white-space:nowrap;font:700 clamp(32px,7vw,58px)/1 var(--font-display);color:#fff;-webkit-text-stroke:2px rgba(102,60,140,.55);text-shadow:0 4px 0 rgba(102,60,140,.35),0 0 24px rgba(255,255,255,.8);transform:translate(-50%,-50%);animation:flourish 1.25s cubic-bezier(.2,1.2,.4,1) forwards}
+.hand-flourish.tier-fine{color:#efe6ff}
+.hand-flourish.tier-rare{color:#ffe7a6;text-shadow:0 4px 0 rgba(160,100,30,.35),0 0 28px rgba(255,211,110,.9)}
+.hand-flourish.tier-legendary{background:linear-gradient(90deg,#ff9fcf,#ffd98e,#a8e6cf,#a9d8f5,#c8b6ff);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:2px rgba(255,255,255,.95);text-shadow:none;filter:drop-shadow(0 3px 0 rgba(90,50,130,.65)) drop-shadow(0 0 14px rgba(255,255,255,.7));animation:flourish 1.25s cubic-bezier(.2,1.2,.4,1) forwards,rainbowSlide 1s linear infinite}
+@keyframes flourish{0%{opacity:0;transform:translate(-50%,-50%) scale(.35) rotate(-8deg)}22%{opacity:1;transform:translate(-50%,-50%) scale(1.12) rotate(2deg)}36%{transform:translate(-50%,-50%) scale(1)}78%{opacity:1}100%{opacity:0;transform:translate(-50%,-90%) scale(1.04)}}
+.score-fly{position:fixed;z-index:80;pointer-events:none;font:700 28px/1 var(--font-display);color:#d2659b;-webkit-text-stroke:1px #fff;text-shadow:0 3px 0 #fff,0 0 12px rgba(255,255,255,.9);transform:translate(-50%,-50%);animation:scoreFly .85s cubic-bezier(.55,-.35,.55,1) forwards}
+@keyframes scoreFly{20%{transform:translate(-50%,-80%) scale(1.25)}100%{transform:translate(calc(-50% + var(--fly-x)),calc(-50% + var(--fly-y))) scale(.6);opacity:.15}}
+.round-card-splash{position:fixed;z-index:58;left:50%;top:38%;display:grid;justify-items:center;gap:4px;padding:16px 34px 14px;border:3px solid #fff;border-radius:22px;background:linear-gradient(135deg,rgba(255,250,253,.96),rgba(240,230,255,.96));box-shadow:8px 10px 0 rgba(89,64,119,.22),0 20px 60px rgba(60,39,91,.25);pointer-events:none;transform:translate(-50%,-50%);animation:roundSplash 1.65s cubic-bezier(.2,1,.3,1) forwards}
+.round-card-splash b{font:700 clamp(30px,6vw,46px)/1 var(--font-display);background:linear-gradient(100deg,#7a4f9c,#d2659b);-webkit-background-clip:text;background-clip:text;color:transparent}
+.round-card-splash span{font:800 12px var(--font-body);letter-spacing:1.6px;text-transform:uppercase;color:#a64d77}
+@keyframes roundSplash{0%{opacity:0;transform:translate(-50%,-30%) scale(.85)}18%{opacity:1;transform:translate(-50%,-50%) scale(1.04)}28%{transform:translate(-50%,-50%) scale(1)}78%{opacity:1;transform:translate(-50%,-50%)}100%{opacity:0;transform:translate(-50%,-70%) scale(.96)}}
+
+/* Ambient garden: drifting petals and fireflies, plus a slow painted pan. */
+.ambient{position:fixed;inset:0;z-index:1;overflow:hidden;pointer-events:none}
+.ambient-petal{position:absolute;top:-6%!important;width:11px;height:8px;border-radius:85% 0 85% 0;background:var(--tone);opacity:.75;box-shadow:0 0 6px rgba(255,255,255,.6);animation:ambientDrift var(--drift-time) linear var(--drift-delay) infinite}
+.ambient-firefly{position:absolute;width:6px;height:6px;border-radius:50%;background:#fff7c8;box-shadow:0 0 10px 3px rgba(255,240,170,.75);animation:firefly calc(var(--drift-time) / 3) ease-in-out var(--drift-delay) infinite alternate}
+@keyframes ambientDrift{0%{transform:translate(0,0) rotate(0)}50%{transform:translate(calc(var(--drift-x) * .6),55vh) rotate(260deg)}100%{transform:translate(var(--drift-x),112vh) rotate(540deg)}}
+@keyframes firefly{0%{opacity:.15;transform:translate(0,0)}50%{opacity:.95}100%{opacity:.25;transform:translate(calc(var(--drift-x) * .35),-60px)}}
+.garden-world{animation:gardenPan 70s ease-in-out infinite alternate}
+@keyframes gardenPan{to{scale:1.06;translate:-1.2% -.8%}}
+
+/* Panels, modals and toasts. */
+.overlay.show .modal{animation:modalIn .42s cubic-bezier(.2,1.25,.4,1)}
+@keyframes modalIn{0%{opacity:0;transform:translateY(26px) scale(.94)}}
+.overlay.show .choice,.overlay.show .upgrade,.overlay.show .tip,.overlay.show .setting-row,.overlay.show .setting-link,.overlay.show .skin-card,.overlay.show .keeper-action{animation:cardIn .46s cubic-bezier(.2,1.2,.4,1) both}
+.overlay.show :is(.choice,.upgrade,.tip,.setting-row,.setting-link,.skin-card,.keeper-action):nth-child(2){animation-delay:.06s}
+.overlay.show :is(.choice,.upgrade,.tip,.setting-row,.setting-link,.skin-card,.keeper-action):nth-child(3){animation-delay:.12s}
+.overlay.show :is(.choice,.upgrade,.tip,.setting-row,.setting-link,.skin-card,.keeper-action):nth-child(4){animation-delay:.18s}
+.overlay.show :is(.upgrade,.setting-link,.skin-card,.keeper-action):nth-child(5){animation-delay:.22s}
+.overlay.show :is(.upgrade,.setting-link,.skin-card,.keeper-action):nth-child(6){animation-delay:.26s}
+.overlay.show :is(.upgrade,.setting-link,.skin-card,.keeper-action):nth-child(n+7){animation-delay:.3s}
+@keyframes cardIn{0%{opacity:0;transform:translateY(18px) scale(.95)}}
+.choice .big-icon .sprite-icon{animation:charmSwing 2.6s ease-in-out infinite;transform-origin:50% 8%}
+.choice:hover .big-icon .sprite-icon{animation-duration:.9s}
+@keyframes charmSwing{25%{transform:rotate(7deg)}75%{transform:rotate(-7deg)}}
+.loss-pet-sprite{animation:lossDrop .7s cubic-bezier(.3,1.3,.5,1) both}
+.loss-window{animation:cardIn .5s cubic-bezier(.2,1.2,.4,1) .12s both}
+@keyframes lossDrop{0%{opacity:0;transform:translateY(-30px)}}
+.ending-flower .sprite-icon{animation:flowerSpin 6s linear infinite}
+@keyframes flowerSpin{to{transform:rotate(360deg)}}
+.toast.show{animation:toastIn .46s cubic-bezier(.2,1.4,.4,1)}
+@keyframes toastIn{0%{transform:translate(-50%,-80px)}}
+.charm.is-new{animation:charmNew 1.4s ease-in-out 3}
+@keyframes charmNew{50%{background:#fff3c8;box-shadow:0 0 0 3px rgba(249,220,143,.7)}}
+.charm.ready .charm-icon .sprite-icon{animation:charmSwing 1.8s ease-in-out infinite;transform-origin:50% 10%}
+
+@media(prefers-reduced-motion:reduce){
+  .ambient,.petal-fall,.dust-puff,.score-fly{display:none!important}
+  .pet-canvas,.garden-world,.start-card h2 .title-word,.start-btn.new:before,.start-guardian:after,.moon-table .die.selected,.choice .big-icon .sprite-icon,.charm.ready .charm-icon .sprite-icon,.ending-flower .sprite-icon{animation:none!important}
+}
+/* Tall phones: use the spare height for a bigger Luma and table. */
+@media(max-width:800px) and (min-height:760px) and (orientation:portrait){
+  .guardian-zone{min-height:200px;grid-template-columns:150px minmax(0,1fr)}.guardian{height:196px}
+  .guardian .pet-canvas{height:190px}.guardian:before{width:172px;height:172px;bottom:-52px}.pet-button:before{width:150px;height:150px}
+  .moon-table{min-height:236px;margin-top:18px;padding-top:16px}.moon-table .die{max-width:70px}
+  .hand-banner{margin-bottom:14px}.score-row{margin-top:14px}
+}
