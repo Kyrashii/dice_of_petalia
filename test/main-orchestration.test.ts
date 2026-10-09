@@ -208,6 +208,31 @@ describe("main orchestration", () => {
     expect(JSON.parse(browser.localStorage.getItem("dice-of-petalia-save-v1") ?? "{}").handsLeft).toBe(3);
   });
 
+  it("asks Luma for a hint and selects the suggested dice", async () => {
+    browser.localStorage.setItem("dice-of-petalia-meta-v1", JSON.stringify({ tutorialSeen: true }));
+    browser.localStorage.setItem("dice-of-petalia-save-v1", JSON.stringify({
+      level: 20, roundScore: 0, handsLeft: 3, rerollsLeft: 2, dice: [3, 3, 3, 3, 1], phase: "play", charms: []
+    }));
+    await import("../src/main");
+    browser.elements.get("#continueBtn")?.onclick?.();
+
+    browser.typeSecret("h");
+
+    expect(browser.elements.get("#rerollLabel")?.textContent).toBe("Reroll 1 die");
+    expect(browser.elements.get("#speech")?.textContent).toMatch(/Five/);
+  });
+
+  it("explains the current hand's score", async () => {
+    browser.localStorage.setItem("dice-of-petalia-meta-v1", JSON.stringify({ tutorialSeen: true }));
+    await import("../src/main");
+    browser.elements.get("#newRunBtn")?.onclick?.();
+
+    browser.elements.get("#scoreRow")?.onclick?.();
+
+    expect(browser.elements.get("#modal")?.innerHTML).toContain("How this hand scores");
+    expect(browser.elements.get("#modal")?.innerHTML).toContain("Dice total");
+  });
+
   it("ignores dice shortcuts before a journey starts", async () => {
     await import("../src/main");
 

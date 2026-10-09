@@ -20,7 +20,8 @@ export function createUiFeedback(context) {
     const t=context.query("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(t._timer);
     t._timer=setTimeout(()=>t.classList.remove("show"),Math.min(4500,1600+msg.length*35));
   }
-  function wait(ms){return new Promise(r=>setTimeout(r,context.reduceMotion?Math.min(ms,120):ms))}
+  // Animation pauses: shortened by "Quick animations", nearly skipped with reduced motion.
+  function wait(ms){const scaled=context.settings?.fast?ms*.55:ms;return new Promise(r=>setTimeout(r,context.reduceMotion?Math.min(scaled,120):scaled))}
   function flashCharms(list){
     list.forEach(ch=>{const i=context.state.charms.indexOf(ch);const el=document.querySelector(`[data-charm="${i}"]`);if(el){el.classList.remove("active");void el.offsetWidth;el.classList.add("active")}});
   }

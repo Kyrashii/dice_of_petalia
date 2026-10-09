@@ -24,7 +24,7 @@ export function getNewRunDiceFrameRect(frameIndex) {
   return { sx: column.x, sy: row.y, sw: column.width, sh: row.height };
 }
 
-export function createNewRunIntro({ query, audio, reduceMotion }) {
+export function createNewRunIntro({ query, audio, isReduced = () => false }) {
   const sheet = new Image();
   let sheetReady = false;
   let sheetFailed = false;
@@ -103,7 +103,7 @@ export function createNewRunIntro({ query, audio, reduceMotion }) {
     timer = setTimeout(() => {
       cleanup();
       onFinish();
-    }, reduceMotion ? 120 : 250);
+    }, isReduced() ? 120 : 250);
   }
 
   function playNewRunIntro(onFinish) {
@@ -116,7 +116,7 @@ export function createNewRunIntro({ query, audio, reduceMotion }) {
     intro.setAttribute("aria-hidden", "false");
     audio.introHop();
 
-    if (reduceMotion) {
+    if (isReduced()) {
       drawNewRunDiceFrame(15);
       timer = setTimeout(() => finishNewRunIntro(onFinish), 350);
       return true;

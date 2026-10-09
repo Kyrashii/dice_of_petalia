@@ -15,7 +15,15 @@ corepack pnpm build
 
 Every move commits its result (state and save) before its animation plays, so counters update instantly and closing the tab mid-roll never loses or repeats a move. All `localStorage` access goes through `src/storage.ts` so blocked storage never stops the game.
 
-Keyboard: `1`–`5` pick dice, `R` reroll, `P` play, `Esc` clear the selection or close a menu.
+Keyboard: `1`–`5` pick dice, `R` reroll, `P` play, `H` ask Luma for a hint, `Esc` clear the selection or close a menu.
+
+## Player experience
+
+- **First-run guide** (`src/coach.ts`): points at the real controls and advances as the player picks, rerolls and plays.
+- **Ask Luma** (`src/luma-hint.ts`): suggests which dice to reroll and explains why; never breaks a made hand.
+- **Score breakdown**: tap the score row to see exactly how petals and sparkle add up.
+- **Luma's Journal** (`src/journal.ts`): 16 collectible stickers and lifetime stats, stored in `dice-of-petalia-journal-v1`.
+- **Settings**: quick animations, calm motion (independent of the system setting) and vibration, stored in `dice-of-petalia-settings-v1`.
 
 ## Sprites
 

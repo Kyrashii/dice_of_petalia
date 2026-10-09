@@ -1,12 +1,16 @@
 // @ts-nocheck
-import { handTier } from "./game-rules";
+import { handTier, handsData, levelPetals } from "./game-rules";
 import { animateNumber } from "./number-animation";
 
 export function createGameRenderer(context) {
+  let shownLevel=null;
   function updateGardenPhase(){
     const phase=Math.min(5,Math.max(1,Math.ceil(context.state.level/5))),previous=Number(document.body.dataset.gardenPhase)||phase;
-    // The garden grows every five rounds: celebrate when a new phase blooms during play.
-    if(phase>previous&&context.state.phase==="play"){context.effects.petalRain(50,["#ffc4dd","#fff1a8","#d9c8ff","#bff0db"]);context.audio.bloom?.();context.toast("The Moon Garden blooms a little brighter.")}
+    // The garden grows every five rounds: celebrate only when play advances into a new
+    // phase, not when a saved run is continued or a new run resets the garden.
+    const advanced=shownLevel!==null&&context.state.level===shownLevel+1;
+    shownLevel=context.state.level;
+    if(advanced&&phase>previous&&context.state.phase==="play"){context.effects.petalRain(50,["#ffc4dd","#fff1a8","#d9c8ff","#bff0db"]);context.audio.bloom?.();context.toast("The Moon Garden blooms a little brighter.")}
     document.body.dataset.gardenPhase=String(phase);for(let i=1;i<=5;i++)document.body.classList.toggle(`garden-unlocked-${i}`,i<=phase)}
   const plural=(n,word)=>`${n} ${word}${n===1?"":"s"}`;
   // Counters, score and buttons. Cheap enough to call on every state change, and
@@ -43,8 +47,16 @@ export function createGameRenderer(context) {
     q("#rerollBtn").disabled=context.busy||state.rerollsLeft<1||count===0;
     q("#playBtn").disabled=context.busy||state.phase!=="play"||state.handsLeft<1;
     q("#playBtn").classList.toggle("clears",clears&&!context.busy);
+    q("#playBtn").classList.remove("hinted");
     context.renderCharms(p.triggers);
+    renderHandGuide(p.hand.id);
     context.refreshLuma?.();
+  }
+  // Side-panel cheat sheet: every hand's current petals and sparkle, best at the top.
+  function renderHandGuide(currentId){
+    const list=context.query("#handGuide");
+    if(!list)return;
+    list.innerHTML=[...handsData].reverse().map(h=>{const lv=context.state.handLevels[h.id]||1;return `<li class="${h.id===currentId?"current":""} tier-${handTier(h)}"><span>${h.name}${lv>1?` <em>Lv ${lv}</em>`:""}</span><b>+${h.base+(lv-1)*levelPetals(h)} · ×${h.mult+lv-1}</b></li>`}).join("");
   }
   function render(){
     updateGardenPhase();

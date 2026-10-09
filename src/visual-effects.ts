@@ -1,6 +1,6 @@
 // @ts-nocheck
 
-export function createVisualEffects({ query, colors, reduceMotion }) {
+export function createVisualEffects({ query, colors, isReduced = () => false }) {
   function removeAfter(element, duration) { setTimeout(() => element.remove(), duration); }
 
   function burst(x, y, count) {
@@ -18,7 +18,7 @@ export function createVisualEffects({ query, colors, reduceMotion }) {
   }
 
   function lumaParticles(kind, count) {
-    if (reduceMotion) return;
+    if (isReduced()) return;
     const stage = query("#guardian"); if (!stage) return;
     const rect = stage.getBoundingClientRect();
     for (let index = 0; index < count; index++) {
@@ -31,7 +31,7 @@ export function createVisualEffects({ query, colors, reduceMotion }) {
   }
 
   function skinEffect(skin) {
-    if (!skin || reduceMotion) return;
+    if (!skin || isReduced()) return;
     const colorsBySkin = { sakura:["#ff9fc8","#ffd2e4"], mint:["#83dbc0","#dffff4"], pearl:["#f0c2da","#fff2d8"], crystal:["#d8a0ff","#a8d8ff"] };
     const glyphsBySkin = { sakura:["✿","·"], mint:["❋","•"], pearl:["✦","·"], crystal:["◆","✧"] };
     const table = document.querySelector(".moon-table"), rect = table?.getBoundingClientRect(); if (!rect) return;
@@ -46,7 +46,7 @@ export function createVisualEffects({ query, colors, reduceMotion }) {
 
   // Small puffs where a die lands on the table.
   function dust(x, y) {
-    if (reduceMotion) return;
+    if (isReduced()) return;
     for (let index = 0; index < 4; index++) {
       const puff = document.createElement("i");
       puff.className = "dust-puff";
@@ -58,7 +58,7 @@ export function createVisualEffects({ query, colors, reduceMotion }) {
 
   // Petals that flutter down across the whole screen.
   function petalRain(count = 36, palette = colors) {
-    if (reduceMotion) return;
+    if (isReduced()) return;
     for (let index = 0; index < count; index++) {
       const petal = document.createElement("i");
       petal.className = "petal-fall";
@@ -80,7 +80,7 @@ export function createVisualEffects({ query, colors, reduceMotion }) {
     element.className = `hand-flourish tier-${tier}`;
     element.textContent = text;
     if (table) { element.style.left = `${table.left + table.width / 2}px`; element.style.top = `${table.top + table.height * .42}px`; }
-    document.body.appendChild(element); removeAfter(element, reduceMotion ? 700 : 1300);
+    document.body.appendChild(element); removeAfter(element, isReduced() ? 700 : 1300);
   }
 
   // Title card for a new round.
@@ -89,13 +89,13 @@ export function createVisualEffects({ query, colors, reduceMotion }) {
     card.className = "round-card-splash";
     card.setAttribute("aria-hidden", "true");
     card.innerHTML = `<b>${title}</b><span>${subtitle}</span>`;
-    document.body.appendChild(card); removeAfter(card, reduceMotion ? 900 : 1700);
+    document.body.appendChild(card); removeAfter(card, isReduced() ? 900 : 1700);
   }
 
   // The played score flies from the hand-score box up into the round score.
   function scoreFly(score, fromSelector, toSelector) {
     const from = query(fromSelector)?.getBoundingClientRect(), to = query(toSelector)?.getBoundingClientRect();
-    if (!from || !to || reduceMotion) return;
+    if (!from || !to || isReduced()) return;
     const element = document.createElement("div");
     element.className = "score-fly"; element.textContent = `+${score.toLocaleString()}`;
     element.style.left = `${from.left + from.width / 2}px`; element.style.top = `${from.top + from.height / 2}px`;
@@ -106,7 +106,7 @@ export function createVisualEffects({ query, colors, reduceMotion }) {
 
   // Gentle petals and fireflies drifting through the garden behind the table.
   function startAmbient(layer) {
-    if (!layer || reduceMotion || layer.childElementCount) return;
+    if (!layer || isReduced() || layer.childElementCount) return;
     const tones = ["#ffd1e6", "#fff4c2", "#e3d6ff", "#c9f1e1"];
     for (let index = 0; index < 14; index++) {
       const mote = document.createElement("i");

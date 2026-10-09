@@ -28,6 +28,9 @@ import { createPetInteraction } from "./pet-interaction";
 import { createNewRunIntro } from "./new-run-intro";
 import { storage } from "./storage";
 import { emptyBonus } from "./run-state";
+import { suggestReroll } from "./luma-hint";
+import { createJournal, STICKERS } from "./journal";
+import { createCoach } from "./coach";
 
 // This module coordinates game state and screen flow. Content and browser services live in focused modules.
 (() => {
@@ -38,9 +41,14 @@ import { emptyBonus } from "./run-state";
     const META_KEY = "dice-of-petalia-meta-v1";
     const GARDEN_KEY = "dice-of-petalia-luma-garden-v1";
     const audio = createAudioController(storage.getJSON("petalia-sound", true) !== false);
-    const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-    const effects = createVisualEffects({query:$,colors:burstColors,reduceMotion});
-    const newRunIntro = createNewRunIntro({query:$,audio,reduceMotion});
+    const SETTINGS_KEY = "dice-of-petalia-settings-v1";
+    const settings = { fast:false, calm:false, haptics:true, ...(storage.getJSON(SETTINGS_KEY, {}) || {}) };
+    const mediaReduce = !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    // Motion is reduced by the system preference or by the in-game "Calm motion" setting.
+    const isReduced = () => mediaReduce || !!settings.calm;
+    const buzz = pattern => { if (settings.haptics) navigator?.vibrate?.(pattern); };
+    const effects = createVisualEffects({query:$,colors:burstColors,isReduced});
+    const newRunIntro = createNewRunIntro({query:$,audio,isReduced});
 
     let garden;
     const gardenState = createGardenState({gardenKey:GARDEN_KEY,skinPacks,get garden(){return garden}});
@@ -55,10 +63,12 @@ import { emptyBonus } from "./run-state";
       onError: () => toast("A dice sheet could not be prepared.")
     });
 
+    const CHARM_TINTS = {"#a8e6cf":"hue-rotate(-128deg) saturate(1.15)","#f5a9cf":"hue-rotate(48deg) saturate(1.2)","#c8b6ff":"","#ffd98e":"hue-rotate(150deg) saturate(1.9) brightness(1.06)"};
     const spriteIcon = name => `<span class="sprite-icon ${name}" aria-hidden="true"></span>`;
     const icons = {
       flower:spriteIcon("flower"),
-      charm:() => spriteIcon("charm"),
+      // The charm sprite is lilac; each variant tints it to its own colour.
+      charm:tone => `<span class="sprite-icon charm" style="filter:${CHARM_TINTS[tone]||""} drop-shadow(0 2px 2px rgba(75,48,96,.15))" aria-hidden="true"></span>`,
       help:spriteIcon("help"),
       sound:spriteIcon("sound"),
       mute:spriteIcon("mute"),
@@ -73,7 +83,8 @@ import { emptyBonus } from "./run-state";
       get selected(){return selected},
       get busy(){return busy}, set busy(value){busy=value},
       query:$,
-      reduceMotion,
+      get reduceMotion(){return isReduced()},
+      settings,buzz,
       audio,effects,icons,
       saveKey:SAVE_KEY,
       gardenKey:GARDEN_KEY,
@@ -118,6 +129,9 @@ import { emptyBonus } from "./run-state";
     const { recordGardenEvent, grantMoonDropForRun } = createGardenProgress(appContext);
     const { emitSkinEffect } = createSkinEffects(appContext);
     const { petTap } = createPetInteraction(appContext);
+    const journal = createJournal(appContext);
+    const coach = createCoach(appContext);
+    Object.assign(appContext,{journal,coach,celebrateSticker});
 
 
     const { saveGarden, taskDone, completedTasks, isUnlocked, effectUnlocked } = gardenState;
@@ -181,7 +195,7 @@ import { emptyBonus } from "./run-state";
       $("#rerollBtn").disabled=true;$("#playBtn").disabled=true;$("#playBtn").classList.remove("clears");
     }
     function renderCommittedScore(){
-      animateNumber($("#roundScore"),state.roundScore,{duration:700,reduceMotion});
+      animateNumber($("#roundScore"),state.roundScore,{duration:700,reduceMotion:isReduced()});
       $("#progressFill").style.width=`${Math.min(100,state.roundScore/state.target*100)}%`;
       renderCommittedCounters();
     }
@@ -193,16 +207,17 @@ import { emptyBonus } from "./run-state";
       busy=true;rollSound();animatePet("dice",1);
       const idx=[...selected],oldDice=[...state.dice],oldHand=evaluate(oldDice),changed=state.dice.map((_,i)=>selected.has(i));
       idx.forEach(i=>state.dice[i]=1+Math.floor(Math.random()*6));
-      state.rerollsLeft--;state.rerollsUsed++;
+      state.rerollsLeft--;state.rerollsUsed++;state.roundRerolls=(state.roundRerolls||0)+1;state.runRerolls=(state.runRerolls||0)+1;
       const hits=triggered(context("reroll",{oldDice,newDice:[...state.dice],changed,oldHand,newHand:evaluate(state.dice)}));
       applyRerollCharmEffects(hits);
       persistSafe();renderCommittedCounters();
       recordGardenEvent({type:"reroll",changed:idx.length,sixes:state.dice.filter((n,i)=>changed[i]&&n===6).length,ones:state.dice.filter((n,i)=>changed[i]&&n===1).length});
+      journal.record({type:"reroll"});
       await tumbleDice(idx,420);
       emitSkinEffect("roll");
       selected.clear();busy=false;
-      speechForHand();render();landDice(idx);audio.land?.();
-      flashCharms(hits);
+      speechForHand();render();landDice(idx);audio.land?.();buzz(14);
+      flashCharms(hits);coach.notify("reroll");
     }
     async function playHand(){
       if(!canAct()||state.handsLeft<1)return;
@@ -211,10 +226,14 @@ import { emptyBonus } from "./run-state";
       state.roundScore+=p.total;state.totalScore+=p.total;state.handsLeft--;
       state.rerollsLeft+=p.rerollRefund;state.bonus=emptyBonus();state.refunded=[];
       recordGardenEvent({type:"play",dice:playedDice,hand:p.hand.id,score:p.total,rerollsUsed:state.rerollsUsed});
-      const won=state.roundScore>=state.target,lost=!won&&state.handsLeft<=0;
+      journal.record({type:"play",hand:p.hand.id,handName:p.hand.name,score:p.total});
+      if(p.total>(state.bestHand?.score||0))state.bestHand={score:p.total,name:p.hand.name};
+      const won=state.roundScore>=state.target,lost=!won&&state.handsLeft<=0,handsUsed=3-state.handsLeft;
       if(won){
         state.phase="chooseCharm";state.charmChoices=makeCharmChoices();
+        state.roundLog=[...(state.roundLog||[]),{level:state.level,hands:handsUsed}];
         recordGardenEvent({type:"round-win",round:state.level,rerollsLeft:state.rerollsLeft});
+        journal.record({type:"round-win",round:state.level,handsUsed,rerollsUsedThisRound:state.roundRerolls||0});
         persistSafe();
       }else if(lost)finishRun(false);
       else{state.dice=rollFive();state.initialDice=[...state.dice];state.rerollsUsed=0;persistSafe()}
@@ -222,9 +241,10 @@ import { emptyBonus } from "./run-state";
       // Score choreography: the scoring dice hop in turn, the hand name blooms,
       // then the points fly into the round total.
       const tier=handTier(p.hand),scoring=scoringIndices(playedDice);
-      renderCommittedCounters();
+      renderCommittedCounters();coach.notify("play");
+      buzz(tier==="legendary"?[25,40,25,40,60]:tier==="rare"?[25,40,40]:18);
       animatePet(tier==="rare"||tier==="legendary"?"cheer":p.mult>=4?"happy":"dice",1);
-      scoring.forEach((_,k)=>setTimeout(()=>audio.tick?.(k),reduceMotion?0:k*85));
+      scoring.forEach((_,k)=>setTimeout(()=>audio.tick?.(k),isReduced()?0:k*85));
       await highlightScoring(scoring,tier);
       if(tier!=="common")effects.flourish(`${p.hand.name}!`,tier);
       if(p.hand.mult>=4)lumaStars(p.hand.mult);
@@ -239,7 +259,7 @@ import { emptyBonus } from "./run-state";
       busy=false;speechForHand();render();dealDice();
     }
     function celebrateRoundWin(){
-      winSound();animatePet("cheer",2);burst(window.innerWidth/2,window.innerHeight/2,40);effects.petalRain(40);
+      winSound();buzz([30,60,30]);animatePet("cheer",2);burst(window.innerWidth/2,window.innerHeight/2,40);effects.petalRain(40);
       $("#speech").textContent="That was lovely! Choose a charm for the path ahead.";
       showCharmChoices();
     }
@@ -271,7 +291,7 @@ import { emptyBonus } from "./run-state";
       const ch=charmChoices()[i];if(!ch)return;
       const existing=state.charms.find(c=>c.familyIndex===ch.familyIndex&&c.variantIndex===ch.variantIndex);
       if(existing)existing.rank++;else state.charms.push({family:ch.family,variant:ch.variant,familyIndex:ch.familyIndex,variantIndex:ch.variantIndex,rank:1});
-      state.charmChoices=[];
+      state.charmChoices=[];journal.record({type:"charm",charms:state.charms.length});
       // The new or upgraded charm glows in the charm list for a moment.
       appContext.freshCharm={index:existing?state.charms.indexOf(existing):state.charms.length-1,until:Date.now()+4000};
       clickSound(620,.08);state.phase="upgradeHand";persistSafe();renderStatus();showHandUpgrade();
@@ -284,7 +304,7 @@ import { emptyBonus } from "./run-state";
     }
     function upgradeHand(id){
       if(state?.phase!=="upgradeHand"||!(id in state.handLevels))return;
-      state.handLevels[id]++;clickSound(760,.1);closeModal();
+      state.handLevels[id]++;clickSound(760,.1);closeModal();journal.record({type:"upgrade",level:state.handLevels[id]});state.roundRerolls=0;
       if(state.level>=25){victory();return}
       state.level++;state.target=targetFor(state.level);state.roundScore=0;state.handsLeft=3;state.rerollsLeft=3;state.dice=rollFive();state.initialDice=[...state.dice];state.rerollsUsed=0;state.bonus=emptyBonus();state.refunded=[];state.phase="play";
       busy=false;$("#speech").textContent=`${roundSpeech()} Reach ${state.target.toLocaleString()} petals.`;persistSafe();render();
@@ -298,7 +318,7 @@ import { emptyBonus } from "./run-state";
       meta.bestLevel=won?25:Math.max(meta.bestLevel||0,state.level);meta.runs=(meta.runs||0)+1;
       if(won)meta.wins=(meta.wins||0)+1;
       meta.bestScore=Math.max(meta.bestScore||0,state.totalScore);
-      saveMeta(meta);clearSave();updateStartStats();
+      saveMeta(meta);clearSave();updateStartStats();journal.record({type:"run-end",won});
     }
     function gameOver(){finishRun(false);showGameOver()}
     function showGameOver(){
@@ -307,24 +327,30 @@ import { emptyBonus } from "./run-state";
         ${runSummary()}<button class="primary" id="againBtn" type="button">Try another journey</button></section></div>`);
       $("#modal").classList.add("loss-modal");
       showSadPet();
-      $("#againBtn").onclick=()=>{closeModal();newRun()};
+      $("#againBtn").onclick=()=>{closeModal();newRun()};$("#endJournal").onclick=()=>showJournal(showGameOver);
     }
     function victory(){
       finishRun(true);
       burst(window.innerWidth/2,window.innerHeight/2,60);effects.petalRain(90);winSound();animatePet("cheer",3);
       showModal(`<h2>The starlight gate opens</h2><p class="lead">You completed all 25 rounds with ${state.totalScore.toLocaleString()} starlight. Lady Luma crowns you the Moon Garden's luckiest wanderer.</p>
         <div class="ending-flower" style="text-align:center">${icons.flower}</div>${runSummary()}<button class="primary" id="againBtn" type="button">Begin a fresh journey</button>`);
-      $("#againBtn").onclick=()=>{closeModal();newRun()};
+      $("#againBtn").onclick=()=>{closeModal();newRun()};$("#endJournal").onclick=()=>showJournal(()=>{closeModal();newRun()});
     }
+    // End-of-journey recap: highlights of this run, a path of cleared rounds and sticker progress.
     function runSummary(){
-      const meta=loadMeta();
-      return `<dl class="run-summary"><div><dt>Charms</dt><dd>${state.charms.length}</dd></div><div><dt>Best round</dt><dd>${meta.bestLevel||state.level}</dd></div><div><dt>Journeys</dt><dd>${meta.runs||1}</dd></div></dl>`;
+      const meta=loadMeta(),cleared=(state.roundLog||[]).length,stickers=Object.keys(journal.journal.stickers).length;
+      const path=Array.from({length:25},(_,i)=>{const log=(state.roundLog||[]).find(r=>r.level===i+1);const cls=log?`cleared h${log.hands}`:i+1===state.level&&state.phase==="over"&&cleared<25?"fell":"";return `<i class="${cls}" title="Round ${i+1}${log?` · cleared with ${log.hands} hand${log.hands>1?"s":""}`:""}"></i>`}).join("");
+      return `<dl class="run-summary"><div><dt>Best hand</dt><dd>${state.bestHand?state.bestHand.score.toLocaleString():"–"}</dd><small>${state.bestHand?.name||"No hands played"}</small></div><div><dt>Rounds</dt><dd>${cleared}</dd><small>Best ever: ${meta.bestLevel||state.level}</small></div><div><dt>Charms</dt><dd>${state.charms.length}</dd><small>${state.runRerolls||0} rerolls used</small></div></dl>
+        <div class="run-path" aria-label="${cleared} of 25 rounds cleared">${path}</div>
+        <button class="journal-peek" id="endJournal" type="button">📔 Luma's Journal · ${stickers} / ${STICKERS.length} stickers</button>`;
     }
     function beginNewRun(){
       state=defaultState();state.initialDice=[...state.dice];selected.clear();busy=false;startPetIdle();
       $("#startScreen").classList.add("hidden");persistSafe();render();speechForHand();dealDice();
+      journal.record({type:"run-start"});
       const meta=loadMeta();
-      if(!meta.tutorialSeen){meta.tutorialSeen=true;saveMeta(meta);showHelp()}
+      // First journey: an interactive guide instead of a wall of rules.
+      if(!meta.tutorialSeen)coach.start(()=>{const m=loadMeta();m.tutorialSeen=true;saveMeta(m);toast("You're ready! Reach the target before your hands run out.")});
       else effects.roundCard("Round 1",`Reach ${state.target.toLocaleString()} petals`);
     }
     function newRun(){
@@ -360,15 +386,20 @@ import { emptyBonus } from "./run-state";
         <div class="tip"><b>2. Play a hand</b><span>Your score is <b class="inline">petals × sparkle</b>. Petals are the dice total plus the hand's bonus. Better hands give more sparkle.</span></div>
         <div class="tip"><b>3. Reach the target</b><span>Each round gives you 3 hands. Reach the round's target score before they run out. A glowing Play button means this hand clears the round.</span></div>
         <div class="tip"><b>4. Grow stronger</b><span>After each round, pick a charm and level up a hand. Play charms add to the hand you play. Reroll charms save their bonus for your next hand.</span></div>
-      </div><p class="help-keys">On a keyboard: <kbd>1</kbd>–<kbd>5</kbd> pick dice · <kbd>R</kbd> reroll · <kbd>P</kbd> play · <kbd>Esc</kbd> clear</p><button class="primary" id="closeHelp" type="button">Got it</button>`);
+      </div><p class="help-keys">On a keyboard: <kbd>1</kbd>–<kbd>5</kbd> pick dice · <kbd>R</kbd> reroll · <kbd>P</kbd> play · <kbd>H</kbd> ask Luma · <kbd>Esc</kbd> clear</p><button class="primary" id="closeHelp" type="button">Got it</button>`);
       $("#closeHelp").onclick=closeModal;
     }
     function showSettings(){
       const soundLabel=audio.enabled?"On":"Off";
+      const toggleRow=(key,title,desc)=>`<section class="setting-row"><div><h3>${title}</h3><p>${desc}</p></div><button class="setting-toggle ${settings[key]?"is-on":""}" data-setting="${key}" type="button" role="switch" aria-checked="${!!settings[key]}"><span aria-hidden="true"></span>${settings[key]?"On":"Off"}</button></section>`;
       const gardenKeeperLink=gardenKeeperToolsUnlocked?`<button class="setting-link garden-keeper-link" id="gardenKeeperTools" type="button"><span><b>Garden Keeper tools</b><small>Test this journey's hidden paths</small></span><strong aria-hidden="true">›</strong></button>`:"";
       showDismissibleModal(`<div class="settings-menu"><p class="eyebrow">Moon Garden</p><h2>Settings</h2><p class="lead">Settle in before your next hand.</p>
         <div class="settings-list">
           <section class="setting-row"><div><h3>Garden sounds</h3><p>Music and little dice chimes.</p></div><button class="setting-toggle ${audio.enabled?"is-on":""}" id="settingsSound" type="button" role="switch" aria-checked="${audio.enabled}"><span aria-hidden="true"></span>${soundLabel}</button></section>
+          ${toggleRow("fast","Quick animations","Shorter dice and score animations for faster play.")}
+          ${toggleRow("calm","Calm motion","Turns off drifting petals, bouncing and screen effects.")}
+          ${"vibrate" in navigator?toggleRow("haptics","Vibration","Gentle taps when dice land and hands score."):""}
+          <button class="setting-link" id="settingsJournal" type="button"><span><b>Luma's Journal</b><small>${Object.keys(journal.journal.stickers).length} of ${STICKERS.length} stickers · lifetime stats</small></span><strong aria-hidden="true">›</strong></button>
           <button class="setting-link" id="settingsHelp" type="button"><span><b>How to play</b><small>Rules, dice, and charms</small></span><strong aria-hidden="true">›</strong></button>
           <button class="setting-link" id="settingsGarden" type="button"><span><b>Dice garden</b><small>Choose cosmetic dice skins</small></span><strong aria-hidden="true">›</strong></button>
           <button class="setting-link" id="settingsHands" type="button"><span><b>Hand levels</b><small>Review your upgrades</small></span><strong aria-hidden="true">›</strong></button>
@@ -376,6 +407,8 @@ import { emptyBonus } from "./run-state";
         </div><button class="primary" id="closeSettings">Back to the table</button></div>`);
       $("#modal").dataset.view="settings";
       $("#settingsSound").onclick=()=>{const enabled=audio.toggle();updateSound();if(enabled)clickSound(660,.05);showSettings()};
+      document.querySelectorAll("[data-setting]").forEach(button=>button.onclick=()=>{const key=button.dataset.setting;settings[key]=!settings[key];saveSettings();clickSound(settings[key]?660:440,.05);if(key==="haptics"&&settings.haptics)buzz(20);showSettings()});
+      $("#settingsJournal").onclick=()=>showJournal(showSettings);
       $("#settingsHelp").onclick=showHelp;$("#settingsGarden").onclick=showSkinMenu;$("#settingsHands").onclick=showHandLevels;
       const gardenKeeperButton=$("#gardenKeeperTools");if(gardenKeeperButton)gardenKeeperButton.onclick=showGardenKeeperTools;
       $("#closeSettings").onclick=closeModal;
@@ -425,6 +458,75 @@ import { emptyBonus } from "./run-state";
       $("#cancelRestart").onclick=closeModal;$("#yesRestart").onclick=()=>{closeModal();newRun()};
     }
 
+    // "Ask Luma": she picks the dice worth rerolling and explains why.
+    function askLuma(){
+      if(!canAct())return;
+      const p=previewStats(),hint=suggestReroll(state.dice,state.rerollsLeft,p.total>=state.target-state.roundScore);
+      selected.clear();hint.reroll.forEach(i=>selected.add(i));
+      render();
+      hint.reroll.forEach((i,k)=>{const el=$(`.die[data-i="${i}"]`);if(el){el.style.setProperty("--anim-delay",`${k*60}ms`);el.classList.add("hinted")}});
+      if(!hint.reroll.length)$("#playBtn").classList.add("hinted");
+      $("#speech").textContent=hint.message;animatePet("wiggle");clickSound(880,.04);
+      if(hint.reroll.length)coach.notify("select");
+    }
+    // A plain-language breakdown of the current hand's score.
+    function showScoreBreakdown(){
+      if(!state)return;
+      const p=previewStats(),base=appContext.baseStats(),lv=state.handLevels[p.hand.id]||1,diceTotal=state.dice.reduce((a,b)=>a+b,0);
+      const row=(label,value,cls="")=>`<li class="${cls}"><span>${label}</span><b>${value}</b></li>`;
+      const charmRows=p.triggers.map(ch=>{const e=ch.variant.effect(ch.rank);return row(`${ch.variant.label} ${ch.family.name}`,[e.petals?`+${e.petals}`:"",e.mult?`+${e.mult} ✦`:"",e.rerolls?"+1 reroll after":""].filter(Boolean).join(" "),"charm-row")}).join("");
+      showDismissibleModal(`<div class="breakdown"><p class="eyebrow">How this hand scores</p><h2>${p.hand.name}</h2>
+        <div class="breakdown-cols"><section><h3>✿ Petals</h3><ul>
+          ${row(`Dice total (${state.dice.join(" + ")})`,diceTotal)}
+          ${row(`${p.hand.name} bonus`,`+${p.hand.base}`)}
+          ${lv>1?row(`Hand level ${lv}`,`+${base.petals-diceTotal-p.hand.base}`):""}
+          ${p.bonus.petals?row("Banked from reroll charms",`+${p.bonus.petals}`,"charm-row"):""}
+          ${p.triggers.filter(ch=>ch.variant.effect(ch.rank).petals).length?p.triggers.filter(ch=>ch.variant.effect(ch.rank).petals).map(ch=>row(`${ch.variant.label} ${ch.family.name}`,`+${ch.variant.effect(ch.rank).petals}`,"charm-row")).join(""):""}
+          ${row("Petals","="+p.petals,"total")}</ul></section>
+        <section><h3>✦ Sparkle</h3><ul>
+          ${row(`${p.hand.name}`,`×${p.hand.mult}`)}
+          ${lv>1?row(`Hand level ${lv}`,`+${lv-1}`):""}
+          ${p.bonus.mult?row("Banked from reroll charms",`+${p.bonus.mult}`,"charm-row"):""}
+          ${p.triggers.filter(ch=>ch.variant.effect(ch.rank).mult).map(ch=>row(`${ch.variant.label} ${ch.family.name}`,`+${ch.variant.effect(ch.rank).mult}`,"charm-row")).join("")}
+          ${row("Sparkle","×"+p.mult,"total")}</ul></section></div>
+        <p class="breakdown-total"><span>${p.petals}</span> × <span>${p.mult}</span> = <b>${p.total.toLocaleString()}</b></p>
+        <p class="lead">${p.total>=state.target-state.roundScore?"This hand clears the round.":`You need ${(state.target-state.roundScore).toLocaleString()} more this round.`} ${p.triggers.length?"":"Charms that match this hand would add to these numbers."}</p>
+        <button class="primary" id="closeBreakdown" type="button">Back to the dice</button></div>`);
+      $("#closeBreakdown").onclick=closeModal;
+    }
+    // Luma's Journal: stickers earned across every journey, plus lifetime stats.
+    function showJournal(onBack=closeModal){
+      const {stickers,stats}=journal.journal,count=Object.keys(stickers).length;
+      const stat=(label,value)=>`<div><dt>${label}</dt><dd>${value}</dd></div>`;
+      showDismissibleModal(`<div class="journal"><p class="eyebrow">Lady Luma's</p><h2>Moon Garden Journal</h2><p class="lead">${count} of ${STICKERS.length} stickers collected. Every journey adds to this book.</p>
+        <div class="journal-progress"><span style="width:${count/STICKERS.length*100}%"></span></div>
+        <ul class="sticker-grid">${STICKERS.map(s=>{const got=stickers[s.id];return `<li class="sticker ${got?"earned":"locked"}" title="${s.desc}"><span class="sticker-glyph" aria-hidden="true">${got?s.glyph:"?"}</span><b>${got?s.title:"???"}</b><small>${s.desc}</small></li>`}).join("")}</ul>
+        <h3 class="journal-sub">Lifetime</h3>
+        <dl class="journal-stats">${stat("Journeys",stats.journeys)}${stat("Rounds cleared",stats.roundsCleared)}${stat("Hands played",stats.handsPlayed)}${stat("Best hand",stats.bestHand?`${stats.bestHand.toLocaleString()}<small>${stats.bestHandName}</small>`:"–")}${stat("Total starlight",stats.totalStarlight.toLocaleString())}${stat("Five of a Kinds",stats.fiveKinds)}</dl>
+        <button class="primary" id="closeJournal" type="button">Close journal</button></div>`,onBack);
+      $("#modal").dataset.view="journal";
+      $("#closeJournal").onclick=onBack;
+    }
+    function celebrateSticker(sticker){
+      const pop=document.createElement("div");
+      pop.className="sticker-pop";pop.setAttribute("role","status");
+      pop.innerHTML=`<span class="sticker-glyph" aria-hidden="true">${sticker.glyph}</span><span><small>New journal sticker</small><b>${sticker.title}</b></span>`;
+      pop.onclick=()=>{pop.remove();if(!$("#overlay").classList.contains("show"))showJournal()};
+      document.body.appendChild(pop);setTimeout(()=>pop.remove(),3600);
+      audio.bloom?.();buzz([20,30,20]);
+      updateJournalButtons();
+    }
+    function updateJournalButtons(){
+      const count=Object.keys(journal.journal.stickers).length;
+      const label=`Luma's Journal · ${count}/${STICKERS.length}`;
+      const start=$("#journalStartBtn");if(start)start.textContent=`📔 ${label}`;
+    }
+    function saveSettings(){storage.setJSON(SETTINGS_KEY,settings);applySettings()}
+    function applySettings(){
+      document.body.classList.toggle("calm-motion",!!settings.calm);
+      document.body.classList.toggle("fast-motion",!!settings.fast);
+    }
+
     function init(){
       $("#brandMark").innerHTML=icons.flower;
       $("#guardian").innerHTML=`<button class="pet-button" type="button" aria-label="Pet Lady Luma" title="Pet Lady Luma"><canvas class="pet-sprite pet-canvas" width="400" height="420"></canvas></button>`;
@@ -433,6 +535,12 @@ import { emptyBonus } from "./run-state";
       $("#newRunBtn").onclick=newRun;$("#continueBtn").onclick=continueRun;$("#rerollBtn").onclick=reroll;$("#playBtn").onclick=playHand;
       $("#settingsBtn").onclick=showSettings;$("#handsBtn").onclick=showHandLevels;$("#skinsBtn").onclick=showSkinMenu;$("#restartBtn").onclick=confirmRestart;
       $("#guardian .pet-button").onclick=petTap;
+      $("#hintBtn").onclick=askLuma;
+      $("#journalBtn").onclick=()=>showJournal();
+      $("#journalStartBtn").onclick=()=>showJournal();
+      const scoreRow=$("#scoreRow");
+      scoreRow.onclick=showScoreBreakdown;
+      scoreRow.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault?.();showScoreBreakdown()}};
       function setSidePanelOpen(open){
         const panel=$("#sidePanel"),isMobile=window.matchMedia?.("(max-width: 800px)").matches;
         panel.classList.toggle("open",open);
@@ -461,6 +569,7 @@ import { emptyBonus } from "./run-state";
         if(key>="1"&&key<="5"&&key.length===1)toggleDie(+key-1);
         else if(key==="r"){e.preventDefault?.();reroll()}
         else if(key==="p"){e.preventDefault?.();playHand()}
+        else if(key==="h"){e.preventDefault?.();askLuma()}
       });
       // pagehide/visibilitychange fire reliably on mobile, where beforeunload often does not.
       const persistIfPlaying=()=>{if(state)persistSafe()};
@@ -468,15 +577,16 @@ import { emptyBonus } from "./run-state";
       document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden")persistIfPlaying()});
       effects.startAmbient($("#ambient"));
       // The speech bubble gives a little pop whenever Luma says something new.
-      if(typeof MutationObserver!=="undefined")new MutationObserver(()=>{const bubble=$(".speech");if(!bubble||reduceMotion)return;bubble.classList.remove("speech-pop");void bubble.offsetWidth;bubble.classList.add("speech-pop")}).observe($("#speech"),{childList:true,characterData:true,subtree:true});
+      if(typeof MutationObserver!=="undefined")new MutationObserver(()=>{const bubble=$(".speech");if(!bubble||isReduced())return;bubble.classList.remove("speech-pop");void bubble.offsetWidth;bubble.classList.add("speech-pop")}).observe($("#speech"),{childList:true,characterData:true,subtree:true});
       // Soft ripple from the press point on the game's chunky buttons.
       document.addEventListener("pointerdown",e=>{
         const button=e.target?.closest?.(".btn,.primary,.start-btn,.choice,.upgrade,.setting-link,.keeper-action");
-        if(!button||button.disabled||reduceMotion)return;
+        if(!button||button.disabled||isReduced())return;
         const rect=button.getBoundingClientRect(),ripple=document.createElement("span");
         ripple.className="ripple";ripple.style.left=`${e.clientX-rect.left}px`;ripple.style.top=`${e.clientY-rect.top}px`;
         button.appendChild(ripple);setTimeout(()=>ripple.remove(),600);
       });
+      applySettings();updateJournalButtons();
       updateStartStats();updateContinue();updateSound();loadPetSheet();prepareSkinSheets();startPetIdle();
     }
     init();

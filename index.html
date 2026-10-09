@@ -26,6 +26,7 @@
         <button class="start-btn continue" id="continueBtn" type="button">Continue saved journey</button>
       </div>
       <p class="start-stats" id="startStats" hidden></p>
+      <button class="start-link" id="journalStartBtn" type="button">📔 Luma's Journal</button>
     </div>
   </div>
 
@@ -68,13 +69,15 @@
           <div class="round-hint" id="roundHint" aria-live="polite"></div>
         </section>
 
-        <section class="score-row">
+        <section class="score-row" id="scoreRow" role="button" tabindex="0" aria-label="Show how this hand scores" title="How this hand scores">
           <div class="score-box" title="Dice total plus hand and charm bonuses"><div class="label">Petals</div><div class="value" id="petals">0</div></div>
           <div class="score-box" title="Petals are multiplied by sparkle"><div class="label">× Sparkle</div><div class="value">×<span id="mult">1</span></div></div>
           <div class="score-box" title="What this hand scores if you play it now"><div class="label">= Hand score</div><div class="value" id="preview">0</div></div>
+          <span class="score-info" aria-hidden="true">?</span>
         </section>
 
         <section class="moon-table" aria-label="Moonlit dice table">
+          <button class="hint-btn" id="hintBtn" type="button" aria-keyshortcuts="H" title="Ask Lady Luma which dice to reroll">✦ Ask Luma</button>
           <div class="hand-banner">
             <strong id="handName">High Roll</strong>
             <span id="handDetail">All five dice add petals</span>
@@ -85,16 +88,19 @@
           <button class="btn reroll-btn" id="rerollBtn" type="button" aria-keyshortcuts="R"><span id="rerollLabel">Tap dice to reroll</span> <small><span id="rerolls">3</span> <span id="rerollsUnit">rerolls left</span></small></button>
           <button class="btn play-btn" id="playBtn" type="button" aria-keyshortcuts="P"><span id="playLabel">Play this hand</span> <small><span id="hands">3</span> <span id="handsUnit">hands left</span></small></button>
         </section>
-        <p class="key-hint">Shortcuts: <kbd>1</kbd>–<kbd>5</kbd> pick dice · <kbd>R</kbd> reroll · <kbd>P</kbd> play · <kbd>Esc</kbd> clear</p>
+        <p class="key-hint">Shortcuts: <kbd>1</kbd>–<kbd>5</kbd> pick dice · <kbd>R</kbd> reroll · <kbd>P</kbd> play · <kbd>H</kbd> hint · <kbd>Esc</kbd> clear</p>
       </main>
 
       <aside class="side-panel" id="sidePanel">
         <button class="mobile-panel-close" id="closeSidePanel" type="button">Back to the table</button>
         <div class="section-title"><span>Your lucky charms</span><span id="charmCount">0</span></div>
         <div class="charm-list" id="charmList"></div>
+        <div class="section-title hand-guide-title"><span>Hand guide</span><span>petals · sparkle</span></div>
+        <ol class="hand-guide" id="handGuide"></ol>
         <div class="side-bottom">
           <button class="mini-btn" id="handsBtn" type="button">Hand levels</button>
           <button class="mini-btn" id="skinsBtn" type="button">Dice garden</button>
+          <button class="mini-btn" id="journalBtn" type="button">Journal</button>
           <button class="mini-btn" id="restartBtn" type="button">New run</button>
         </div>
       </aside>

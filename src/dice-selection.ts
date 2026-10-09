@@ -14,7 +14,8 @@ export function createDiceSelection(context) {
       const name=context.selected.has(i)?"just-picked":"just-dropped";
       die.classList.add(name);setTimeout(()=>die.classList.remove(name),300);
     }
-    context.clickSound(context.selected.has(i)?520:430,.03);
+    context.clickSound(context.selected.has(i)?520:430,.03);context.buzz?.(8);
+    if(context.selected.size)context.coach?.notify("select");
   }
   function clearSelection(){
     if(!canSelect()||!context.selected.size)return;
